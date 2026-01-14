@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package user;
+option go_package = "userpb/";  
+
+import "google/protobuf/timestamp.proto";
+
+service UserService {
+  rpc CreateUser (CreateUserRequest) returns (User); // may be create new msg response for all methods may be
+  rpc GetUserByID (GetUserByIDRequest) returns (User);
+  rpc GetUserByEmail (GetUserByEmailRequest) returns (User);
+}
+
+message User {
+    string id = 1;
+    string name = 2;
+    string email = 3;
+    string bio = 4;
+    string Hashedpassword = 5;
+    uint64 followerCount = 6;
+    google.protobuf.Timestamp createdAt = 7;
+}
+
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message GetUserByIDRequest{
+  string id = 1;
+}
+
+message GetUserByEmailRequest{
+  string email =1;
+}
+
+
