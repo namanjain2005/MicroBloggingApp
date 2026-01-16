@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"microBloggingAPP/internal/config"
-	"microBloggingAPP/internal/user-service"
+	userservice "microBloggingAPP/internal/user-service"
 	pb "microBloggingAPP/internal/user-service/userpb"
 )
 
@@ -55,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to listen on %s: %v", cfg.GRPC.Address(), err)
 	}
-
+	defer listener.Close()
 	log.Printf("User Service listening on %s\n", listener.Addr().String())
 
 	if err := grpcServer.Serve(listener); err != nil {

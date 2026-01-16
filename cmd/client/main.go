@@ -90,10 +90,10 @@ func (a *App) Close() error {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [global flags] <command> [command flags]\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "Global flags:\n")
-	flag.PrintDefaults()
-	fmt.Fprintln(os.Stderr, "\nCommands:\n  create -name <name> -password <password>    Create a user\n  get    -id <id>                             Get a user by id")
+	fmt.Println("Commands:")
+	fmt.Println("  create -name <name> -email <email> -password <password>")
+	fmt.Println("  get    -id <id>")
+	fmt.Println("  exit")
 }
 
 func main() {
@@ -227,16 +227,15 @@ func handleCommand(a *App, tokens []string, timeout time.Duration, server string
 		fs := flag.NewFlagSet("create", flag.ContinueOnError)
 		name := fs.String("name", "", "User name (required)")
 		password := fs.String("password", "", "User password (required)")
+		email := fs.String("email","" ,"email (required)" )
 		if err := fs.Parse(tokens[1:]); err != nil {
 			return err
 		}
-		if *name == "" || *password == "" {
-			return errors.New("name and password are required")
-		}
+		
 		if err := a.EnsureConnected(server, timeout); err != nil {
 			return err
 		}
-		return createUser(a, *name, *password)
+		return createUser(a, *name, *password,*email)
 
 	case "get":
 		fs := flag.NewFlagSet("get", flag.ContinueOnError)
@@ -251,7 +250,32 @@ func handleCommand(a *App, tokens []string, timeout time.Duration, server string
 			return err
 		}
 		return getUser(a, *id)
+	case "get-email":
+		fs := flag.NewFlagSet("get-email", flag.ContinueOnError)
+		email := fs.String("email", "", "")
+		_ = fs.Parse(tokens[1:])
 
+		if *email == "" {
+			return errors.New("email required")
+		}
+		if err := a.EnsureConnected(server, timeout); err != nil {
+			return err
+		}
+		return getUserByEmail(a, *email)
+
+	case "modify-bio":
+		fs := flag.NewFlagSet("modify-bio", flag.ContinueOnError)
+		id := fs.String("id", "", "")
+		bio := fs.String("bio", "", "")
+		_ = fs.Parse(tokens[1:])
+
+		if *id == "" || *bio == "" {
+			return errors.New("id and bio required")
+		}
+		if err := a.EnsureConnected(server, timeout); err != nil {
+			return err
+		}
+		return modifyBio(a, *id, *bio)
 	case "help", "-h", "--help":
 		usage()
 		return nil
@@ -264,21 +288,25 @@ func handleCommand(a *App, tokens []string, timeout time.Duration, server string
 	}
 }
 
-func createUser(a *App, name, password string) error {
+func printUser(u *pb.User) {
+	fmt.Println("User:")
+	fmt.Println("ID:", u.Id)
+	fmt.Println("Name:", u.Name)
+	fmt.Println("Email:", u.Email)
+	fmt.Println("Bio:", u.Bio)
+	fmt.Println("Followers:", u.FollowerCount)
+}
+
+func createUser(a *App, name, password string,email string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req := &pb.CreateUserRequest{Name: name, Password: password}
+	req := &pb.CreateUserRequest{Name: name, Password: password,Email: email}
 	resp, err := a.client.CreateUser(ctx, req)
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("User created successfully!\n")
-	fmt.Printf("ID: %s\n", resp.Id)
-	fmt.Printf("Name: %s\n", resp.Name)
-	fmt.Printf("Mail: %s\n", resp.Email)
-	fmt.Printf("Bio: %s\n", resp.Bio)
+	printUser(resp)
 	return nil
 }
 
@@ -291,12 +319,40 @@ func getUser(a *App, id string) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("User retrieved successfully!\n")
-	fmt.Printf("ID: %s\n", resp.Id)
-	fmt.Printf("Name: %s\n", resp.Name)
-	fmt.Printf("Mail: %s\n", resp.Email)
-	fmt.Printf("Bio: %s\n", resp.Bio)
-	fmt.Printf("Follower Count: %d\n", resp.FollowerCount)
+	printUser(resp)
 	return nil
 }
+
+
+func getUserByEmail(a *App, email string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := a.client.GetUserByEmail(ctx, &pb.GetUserByEmailRequest{
+		Email: email,
+	})
+	if err != nil {
+		return err
+	}
+
+	printUser(resp)
+	return nil
+}
+
+func modifyBio(a *App, id, bio string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := a.client.ModifyBio(ctx, &pb.ModifyBioRequest{
+		Id:  id,
+		Bio: bio,
+	})
+	if err != nil {
+		return err
+	}
+
+	printUser(resp)
+	return nil
+}
+
+

@@ -81,13 +81,13 @@ func CreateUser(ctx context.Context, col *mongo.Collection, req *pb.CreateUserRe
 	}, nil
 }
 
-func GetUserByID(ctx context.Context, col *mongo.Collection, id string) (*pb.User, error) {
-	if id == "" {
+func GetUserByID(ctx context.Context, col *mongo.Collection,req *pb.GetUserByIDRequest) (*pb.User, error) {
+	if req.Id == "" {
 		return nil, errors.New("user id is required")
 	}
 
 	var user User
-	err := col.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
+	err := col.FindOne(ctx, bson.M{"_id": req.Id}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("user not found")
@@ -105,12 +105,12 @@ func GetUserByID(ctx context.Context, col *mongo.Collection, id string) (*pb.Use
 	}, nil
 }
 
-func GetUserByEmail(ctx context.Context, col *mongo.Collection, email string) (*pb.User, error) {
-	if email == "" {
+func GetUserByEmail(ctx context.Context, col *mongo.Collection,req *pb.GetUserByEmailRequest) (*pb.User, error) {
+	if req.Email == "" {
 		return nil, errors.New("Need email to retrieve getUser")
 	}
 	var user User
-	err := col.FindOne(ctx, bson.M{"email": email}).Decode(&user)
+	err := col.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNilDocument {
 			return nil, errors.New("user not found")
@@ -127,18 +127,18 @@ func GetUserByEmail(ctx context.Context, col *mongo.Collection, email string) (*
 	}, nil
 }
 
-func ModifyBio(ctx context.Context, col *mongo.Collection, id string, bio string) (*pb.User, error) {
-	if id == "" {
+func ModifyBio(ctx context.Context, col *mongo.Collection, req *pb.ModifyBioRequest) (*pb.User, error) {
+	if req.Id == "" {
 		return nil, errors.New("user id is required")
 	}
-	if bio == "" {
+	if req.Bio == "" {
 		return nil, errors.New("bio is empty")
 	}
 
-	filter := bson.M{"_id": id}
+	filter := bson.M{"_id": req.Id}
 	update := bson.M{
 		"$set": bson.M{
-			"bio": bio,
+			"bio": req.Bio,
 		},
 	}
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
@@ -160,4 +160,6 @@ func ModifyBio(ctx context.Context, col *mongo.Collection, id string, bio string
 		Bio:           user.Bio,
 		CreatedAt:     timestamppb.New(user.CreatedAt),
 	}, nil
-}
+}			
+
+
