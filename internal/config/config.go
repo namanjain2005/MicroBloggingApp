@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -128,7 +127,7 @@ func (c *Config) initMongo(userCol, followCol string) {
 	c.ensureIndexes(ctx)
 }
 
-func (c *Config) ensureIndexes(ctx context.Context) {
+func (c *Config) ensureIndexes(ctx context.Context) {//do testing with removing index and adding to see effects
 	_, err := c.Mongo.FollowCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{
 			{Key: "followerId", Value: 1},
@@ -140,9 +139,18 @@ func (c *Config) ensureIndexes(ctx context.Context) {
 		log.Fatalf("follow index creation failed: %v", err)
 	}
 
+	_, err = c.Mongo.FollowCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "followeeId", Value: 1},
+		},
+	})
+	if err != nil {
+		log.Fatalf("follow index creation failed: %v", err)
+	}
+	
 	_, err = c.Mongo.UserCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{
-			{Key: "name", Value: 1},
+			{Key: "_id", Value: 1},
 		},
 		Options: options.Index().SetUnique(true),
 	})
@@ -151,12 +159,10 @@ func (c *Config) ensureIndexes(ctx context.Context) {
 	}
 }
 
-// ConnectionString returns the MongoDB connection string
 func (m Mongo) ConnectionString() string {
 	return m.URI
 }
 
-// Address returns the gRPC server address
 func (g GRPC) Address() string {
 	return fmt.Sprintf("%s:%s", g.Host, g.Port)
 }

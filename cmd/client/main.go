@@ -230,7 +230,7 @@ func run(app *client.App, fn func(socialpb.FollowServiceClient) error) error {
 	if err := app.Ensure(); err != nil {
 		return fmt.Errorf("connection error: %w", err)
 	}
-	if err := fn(app.Client()); err != nil {
+	if err := fn(app.FollowClient()); err != nil {
 		return fmt.Errorf("rpc error: %w", err)
 	}
 	return nil

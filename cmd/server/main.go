@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"google.golang.org/grpc"
 	"log"
 	"microBloggingAPP/internal/config"
 	socialservice "microBloggingAPP/internal/social-service"
@@ -9,14 +10,12 @@ import (
 	userservice "microBloggingAPP/internal/user-service"
 	userpb "microBloggingAPP/internal/user-service/userpb"
 	"net"
-
-	"google.golang.org/grpc"
 )
 
 func main() {
 	cfg := config.Load()
 	defer cfg.Mongo.Client.Disconnect(context.Background())
-	
+
 	log.Println("Starting MicroBlogging Service")
 	log.Printf("Environment: %s", cfg.App.Env)
 	log.Printf("MongoDB URI: %s", cfg.Mongo.URI)

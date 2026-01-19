@@ -13,11 +13,11 @@ import (
 )
 
 type App struct {
-	mu         sync.Mutex
-	addr       string
-	conn       *grpc.ClientConn
-	client     pb.FollowServiceClient
-	userClient userpb.UserServiceClient
+	mu           sync.Mutex
+	addr         string
+	conn         *grpc.ClientConn
+	followclient pb.FollowServiceClient
+	userClient   userpb.UserServiceClient
 }
 
 func New(addr string) *App {
@@ -33,7 +33,7 @@ func (a *App) connect() error {
 		return err
 	}
 	a.conn = conn
-	a.client = pb.NewFollowServiceClient(conn)
+	a.followclient = pb.NewFollowServiceClient(conn)
 	a.userClient = userpb.NewUserServiceClient(conn)
 	return nil
 }
@@ -65,8 +65,8 @@ func (a *App) Close() error {
 	return nil
 }
 
-func (a *App) Client() pb.FollowServiceClient {
-	return a.client
+func (a *App) FollowClient() pb.FollowServiceClient {
+	return a.followclient
 }
 
 func (a *App) UserClient() userpb.UserServiceClient {

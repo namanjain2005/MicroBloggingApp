@@ -208,16 +208,12 @@ func GetFollowingReq(
 		"followerId": req.UserId,
 	}
 
-	// If a cursor is provided, refine the filter for seek-based pagination.
-	// We assume that the _id of the follow document is a sortable and unique identifier (like MongoDB ObjectID)
-	// that acts as our cursor for keyset pagination.
 	if req.Pagination.Cursor != "" {
 		filter["_id"] = bson.M{"$gt": req.Pagination.Cursor}
 	}
 
-	findOptions := options.Find().
-		SetLimit(limit).
-		SetSort(bson.M{"_id": 1}) // Sort by _id ascending to get the next page
+	findOptions := options.Find().SetLimit(limit).SetSort(bson.M{"_id": 1})
+	// Sort by _id ascending to get the next page
 
 	cursor, err := followsCol.Find(ctx, filter, findOptions)
 	if err != nil {
@@ -233,7 +229,7 @@ func GetFollowingReq(
 		if err := cursor.Decode(&followDoc); err != nil {
 			return nil, status.Errorf(codes.Internal, "decode document: %v", err)
 		}
-
+		
 		following = append(following, &pb.FollowingEdge{
 			FolloweeId: followDoc.FolloweeId,
 			FollowedAt: timestamppb.New(followDoc.CreatedAt),
@@ -245,13 +241,8 @@ func GetFollowingReq(
 		return nil, status.Errorf(codes.Internal, "cursor error: %v", err)
 	}
 
-	// Determine next cursor: if we retrieved a full page, there might be more.
 	nextCursor := ""
 	if len(following) == int(limit) {
-		// To be certain if there is a next page, we should have queried limit+1,
-		// but for simplicity and common practice, we use the last returned ID as the cursor.
-		// A more robust implementation would fetch limit+1 and only return 'limit' documents.
-		// For now, if we filled the limit, we assume the last ID is the next cursor.
 		if lastFollowID != "" {
 			nextCursor = lastFollowID
 		}
@@ -263,8 +254,6 @@ func GetFollowingReq(
 	}, nil
 }
 
-// GetFollowersReq implements the GetFollowers RPC using cursor-based pagination.
-// It retrieves users who are following the requested user.
 func GetFollowersReq(
 	ctx context.Context,
 	followsCol *mongo.Collection,
@@ -280,12 +269,10 @@ func GetFollowersReq(
 		limit = 20 // Default limit
 	}
 
-	// Base filter: user is the followee
 	filter := bson.M{
 		"followeeId": req.UserId,
 	}
 
-	// If a cursor is provided, refine the filter for seek-based pagination.
 	if req.Pagination.Cursor != "" {
 		filter["_id"] = bson.M{"$gt": req.Pagination.Cursor}
 	}
@@ -320,7 +307,6 @@ func GetFollowersReq(
 		return nil, status.Errorf(codes.Internal, "cursor error: %v", err)
 	}
 
-	// Determine next cursor
 	nextCursor := ""
 	if len(followersList) == int(limit) {
 		if lastFollowID != "" {
