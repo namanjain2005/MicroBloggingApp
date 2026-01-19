@@ -2,13 +2,14 @@ package client
 
 import (
 	"context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
 	pb "microBloggingAPP/internal/social-service/socialpb"
 	userpb "microBloggingAPP/internal/user-service/userpb"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type App struct {
@@ -24,16 +25,13 @@ func New(addr string) *App {
 }
 
 func (a *App) connect() error {
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		a.addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
-		grpc.WithTimeout(5*time.Second),
+		grpc.WithTransportCredentials(insecure.NewCredentials()), //needs attention
 	)
 	if err != nil {
 		return err
 	}
-
 	a.conn = conn
 	a.client = pb.NewFollowServiceClient(conn)
 	a.userClient = userpb.NewUserServiceClient(conn)
