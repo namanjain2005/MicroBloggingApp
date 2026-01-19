@@ -1,28 +1,36 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Config holds all configuration for the application
 type Config struct {
-	MongoDB MongoDB
-	GRPC    GRPC
-	App     App
+	Mongo Mongo
+	GRPC  GRPC
+	App   App
 }
 
 // MongoDB holds MongoDB configuration
-type MongoDB struct {
-	URI            string
-	DBName         string
-	CollectionName string
-	Timeout        int
+type Mongo struct {
+	URI              string
+	DBName           string
+	DB               *mongo.Database
+	UserCollection   *mongo.Collection
+	FollowCollection *mongo.Collection
+	Client           *mongo.Client
+	Timeout          int
 }
 
 // GRPC holds gRPC server configuration
@@ -39,31 +47,24 @@ type App struct {
 
 // Load loads configuration from environment variables and fails fast when required variables are missing
 func Load() *Config {
-	// Try to auto-load .env from project root first, then internal/config if present
-	if err := godotenv.Load(); err != nil {
-		// attempt internal path
-		if err2 := godotenv.Load("internal/config/.env"); err2 == nil {
-			log.Println("Loaded environment from internal/config/.env")
-		} else {
-			log.Println("No .env file found in project root or internal/config; relying on process environment variables")
-		}
-	} else {
-		log.Println("Loaded environment from .env")
-	}
+	_ = godotenv.Load()
+	_ = godotenv.Load("internal/config/.env")
 
 	required := []string{
 		"MONGO_URI",
 		"MONGO_DB_NAME",
-		"MONGO_COLLECTION_NAME",
+		"MONGO_USER_COLLECTION",
+		"MONGO_FOLLOW_COLLECTION",
 		"MONGO_TIMEOUT",
-		"GRPC_PORT",
 		"GRPC_HOST",
+		"GRPC_PORT",
 		"APP_ENV",
 		"LOG_LEVEL",
 	}
 
-	vals := make(map[string]string, len(required))
-	missing := make([]string, 0)
+	vals := map[string]string{}
+	var missing []string
+
 	for _, k := range required {
 		v := os.Getenv(k)
 		if v == "" {
@@ -73,7 +74,7 @@ func Load() *Config {
 	}
 
 	if len(missing) > 0 {
-		log.Fatalf("missing required environment variables: %s", strings.Join(missing, ", "))
+		log.Fatalf("missing env vars: %s", strings.Join(missing, ", "))
 	}
 
 	timeout, err := strconv.Atoi(vals["MONGO_TIMEOUT"])
@@ -81,26 +82,77 @@ func Load() *Config {
 		log.Fatalf("invalid MONGO_TIMEOUT: %v", err)
 	}
 
-	return &Config{
-		MongoDB: MongoDB{
-			URI:            vals["MONGO_URI"],
-			DBName:         vals["MONGO_DB_NAME"],
-			CollectionName: vals["MONGO_COLLECTION_NAME"],
-			Timeout:        timeout,
+	cfg := &Config{
+		Mongo: Mongo{
+			URI:     vals["MONGO_URI"],
+			DBName:  vals["MONGO_DB_NAME"],
+			Timeout: timeout,
 		},
 		GRPC: GRPC{
-			Port: vals["GRPC_PORT"],
 			Host: vals["GRPC_HOST"],
+			Port: vals["GRPC_PORT"],
 		},
 		App: App{
 			Env:      vals["APP_ENV"],
 			LogLevel: vals["LOG_LEVEL"],
 		},
 	}
+
+	cfg.initMongo(
+		vals["MONGO_USER_COLLECTION"],
+		vals["MONGO_FOLLOW_COLLECTION"],
+	)
+
+	return cfg
+}
+
+func (c *Config) initMongo(userCol, followCol string) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		time.Duration(c.Mongo.Timeout)*time.Second,
+	)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(c.Mongo.URI))
+	if err != nil {
+		log.Fatalf("mongo connect failed: %v", err)
+	}
+
+	db := client.Database(c.Mongo.DBName)
+
+	c.Mongo.Client = client
+	c.Mongo.DB = db
+	c.Mongo.UserCollection = db.Collection(userCol)
+	c.Mongo.FollowCollection = db.Collection(followCol)
+
+	c.ensureIndexes(ctx)
+}
+
+func (c *Config) ensureIndexes(ctx context.Context) {
+	_, err := c.Mongo.FollowCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "followerId", Value: 1},
+			{Key: "followeeId", Value: 1},
+		},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		log.Fatalf("follow index creation failed: %v", err)
+	}
+
+	_, err = c.Mongo.UserCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "name", Value: 1},
+		},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		log.Fatalf("user index creation failed: %v", err)
+	}
 }
 
 // ConnectionString returns the MongoDB connection string
-func (m MongoDB) ConnectionString() string {
+func (m Mongo) ConnectionString() string {
 	return m.URI
 }
 

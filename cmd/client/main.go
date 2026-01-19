@@ -1,358 +1,247 @@
-// COMPELETLY WRITTEN BY AI DONT KNOW WTF IS HAPPENING IN THIS FILE IT JUST SEEMS TO DO SOME STUPID THING IDK
-
 package main
 
 import (
 	"bufio"
-	"context"
-	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"log"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
-
+	"microBloggingAPP/internal/client"
 	"microBloggingAPP/internal/config"
-	pb "microBloggingAPP/internal/user-service/userpb"
+	"microBloggingAPP/internal/social-service/socialpb"
+	"microBloggingAPP/internal/user-service/userpb"
+	"os"
+	"strconv"
+	"strings"
 )
-
-type App struct {
-	cfg    *config.Config
-	conn   *grpc.ClientConn
-	client pb.UserServiceClient
-}
-
-func NewApp(cfg *config.Config) *App {
-	return &App{cfg: cfg}
-}
-
-func (a *App) Connect(target string, timeout time.Duration) error {
-	if target == "" {
-		return errors.New("empty target address")
-	}
-
-	log.Printf("Dialing %s", target)
-	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return fmt.Errorf("newclient error: %w", err)
-	}
-
-	// Create a temporary client to trigger connection activity
-	tmpClient := pb.NewUserServiceClient(conn)
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		state := conn.GetState()
-		log.Printf("connection state: %s", state.String())
-		if state == connectivity.Ready {
-			a.conn = conn
-			a.client = pb.NewUserServiceClient(conn)
-			log.Printf("connection to %s is ready", target)
-			return nil
-		}
-
-		// Try a short RPC to stimulate the transport to transition out of IDLE
-		ctxRPC, cancelRPC := context.WithTimeout(context.Background(), 2*time.Second)
-		_, rpcErr := tmpClient.GetUserByID(ctxRPC, &pb.GetUserByIDRequest{Id: ""})
-		cancelRPC()
-		if rpcErr != nil {
-			log.Printf("trigger RPC error (expected until ready): %v", rpcErr)
-		}
-
-		// Wait for any state change up to the remaining deadline
-		remaining := time.Until(deadline)
-		ctx, cancel := context.WithTimeout(context.Background(), remaining)
-		changed := conn.WaitForStateChange(ctx, state)
-		cancel()
-		if !changed {
-			conn.Close()
-			return fmt.Errorf("timeout waiting for connection to become ready")
-		}
-	}
-
-	conn.Close()
-	return fmt.Errorf("timeout waiting for connection to become ready")
-}
-
-func (a *App) Close() error {
-	if a.conn != nil {
-		return a.conn.Close()
-	}
-	return nil
-}
-
-func usage() {
-	fmt.Println("Commands:")
-	fmt.Println("  create -name <name> -email <email> -password <password>")
-	fmt.Println("  get    -id <id>")
-	fmt.Println("  exit")
-}
 
 func main() {
 	cfg := config.Load()
+	addr := cfg.GRPC.Address()
 
-	serverAddr := flag.String("server", "", "Server address (defaults to config GRPC address)")
-	dialTimeout := flag.Duration("timeout", 30*time.Second, "Dial timeout duration (default 30s)")
-	flag.Usage = usage
-	flag.Parse()
-
-	args := flag.Args()
-
-	if *serverAddr == "" {
-		// If server host is 0.0.0.0 (bind-all), dial localhost instead for client connections
-		if cfg.GRPC.Host == "0.0.0.0" {
-			*serverAddr = fmt.Sprintf("localhost:%s", cfg.GRPC.Port)
-		} else {
-			*serverAddr = cfg.GRPC.Address()
-		}
-	}
-
-	app := NewApp(cfg)
-	// Connect once for the lifetime of the application (will reconnect as needed)
-	if err := app.Connect(*serverAddr, *dialTimeout); err != nil {
-		log.Fatalf("failed to connect: %v", err)
+	app := client.New(addr)
+	if err := app.Ensure(); err != nil {
+		log.Fatalf("connect failed: %v", err)
 	}
 	defer app.Close()
 
-	// Print connection and usage info
-	fmt.Printf("Connected to %s\n", *serverAddr)
-	fmt.Println("Type 'help' for commands, or 'exit' to quit")
-	usage()
+	fmt.Println("Connected to", addr)
+	fmt.Println("Commands: follow, unfollow, followers, following, repeat")
+	fmt.Println("User Commands: create_user, get_user, get_user_by_email, modify_bio")
+	fmt.Println("Other: exit")
 
-	// Handle OS signals for graceful shutdown
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		fmt.Println("\nReceived interrupt, exiting...")
-		app.Close()
-		os.Exit(0)
-	}()
-
-	// If command arguments provided, run once then continue into REPL
-	if len(args) >= 1 {
-		if err := handleCommand(app, args, *dialTimeout, *serverAddr); err != nil {
-			if err == io.EOF {
-				// nothing
-			} else {
-				fmt.Fprintf(os.Stderr, "command failed: %v\n", err)
-			}
-		}
-		// fall through to interactive REPL
-	}
-
-	// Interactive REPL mode
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("> ")
 		if !scanner.Scan() {
-			// EOF or error: exit gracefully
-			if err := scanner.Err(); err != nil {
-				fmt.Fprintf(os.Stderr, "input error: %v\n", err)
-			}
 			break
 		}
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		if len(parts) == 0 {
 			continue
 		}
-		tokens := strings.Fields(line)
-		if tokens[0] == "exit" || tokens[0] == "quit" {
-			break
-		}
-		if err := handleCommand(app, tokens, *dialTimeout, *serverAddr); err != nil {
-			if err == io.EOF {
-				break
+
+		if err := processCommand(app, parts); err != nil {
+			if err.Error() == "exit" {
+				return
 			}
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			fmt.Println("error:", err)
 		}
 	}
-
-	fmt.Println("Goodbye")
 }
 
-// EnsureConnected ensures the client is connected and READY, reconnecting if necessary
-func (a *App) EnsureConnected(target string, timeout time.Duration) error {
-	if a.conn != nil && a.conn.GetState() == connectivity.Ready {
-		return nil
-	}
-	// Try a short wait if a connection exists
-	if a.conn != nil {
-		short := timeout / 4
-		ctx, cancel := context.WithTimeout(context.Background(), short)
-		defer cancel()
-		state := a.conn.GetState()
-		if a.conn.WaitForStateChange(ctx, state) {
-			if a.conn.GetState() == connectivity.Ready {
-				a.client = pb.NewUserServiceClient(a.conn)
-				return nil
-			}
-		}
-		_ = a.conn.Close()
-		a.conn = nil
-	}
-
-	// Retry connect with exponential backoff
-	maxAttempts := 3
-	backoff := 1 * time.Second
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		err := a.Connect(target, timeout)
-		if err == nil {
-			return nil
-		}
-		log.Printf("Connect attempt %d/%d failed: %v", attempt, maxAttempts, err)
-		if attempt < maxAttempts {
-			time.Sleep(backoff)
-			backoff *= 2
-		}
-	}
-	return fmt.Errorf("all connect attempts failed")
-}
-
-// handleCommand parses tokens and executes the requested command
-func handleCommand(a *App, tokens []string, timeout time.Duration, server string) error {
-	if len(tokens) == 0 {
-		return nil
-	}
-	switch tokens[0] {
-	case "create":
-		fs := flag.NewFlagSet("create", flag.ContinueOnError)
-		name := fs.String("name", "", "User name (required)")
-		password := fs.String("password", "", "User password (required)")
-		email := fs.String("email","" ,"email (required)" )
-		if err := fs.Parse(tokens[1:]); err != nil {
-			return err
-		}
-		
-		if err := a.EnsureConnected(server, timeout); err != nil {
-			return err
-		}
-		return createUser(a, *name, *password,*email)
-
-	case "get":
-		fs := flag.NewFlagSet("get", flag.ContinueOnError)
-		id := fs.String("id", "", "User ID (required)")
-		if err := fs.Parse(tokens[1:]); err != nil {
-			return err
-		}
-		if *id == "" {
-			return errors.New("id is required")
-		}
-		if err := a.EnsureConnected(server, timeout); err != nil {
-			return err
-		}
-		return getUser(a, *id)
-	case "get-email":
-		fs := flag.NewFlagSet("get-email", flag.ContinueOnError)
-		email := fs.String("email", "", "")
-		_ = fs.Parse(tokens[1:])
-
-		if *email == "" {
-			return errors.New("email required")
-		}
-		if err := a.EnsureConnected(server, timeout); err != nil {
-			return err
-		}
-		return getUserByEmail(a, *email)
-
-	case "modify-bio":
-		fs := flag.NewFlagSet("modify-bio", flag.ContinueOnError)
-		id := fs.String("id", "", "")
-		bio := fs.String("bio", "", "")
-		_ = fs.Parse(tokens[1:])
-
-		if *id == "" || *bio == "" {
-			return errors.New("id and bio required")
-		}
-		if err := a.EnsureConnected(server, timeout); err != nil {
-			return err
-		}
-		return modifyBio(a, *id, *bio)
-	case "help", "-h", "--help":
-		usage()
-		return nil
-
+func processCommand(app *client.App, cmd []string) error {
+	switch cmd[0] {
 	case "exit", "quit":
-		return io.EOF
+		return fmt.Errorf("exit")
+
+	case "follow":
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: follow <follower_id> <followee_id>")
+		}
+		return run(app, func(c socialpb.FollowServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			_, err := c.FollowUser(ctx, &socialpb.FollowUserRequest{
+				FollowerId: cmd[1],
+				FolloweeId: cmd[2],
+			})
+			if err == nil {
+				fmt.Println("Success")
+			}
+			return err
+		})
+
+	case "unfollow":
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: unfollow <follower_id> <followee_id>")
+		}
+		return run(app, func(c socialpb.FollowServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			_, err := c.UnfollowUser(ctx, &socialpb.UnfollowUserRequest{
+				FollowerId: cmd[1],
+				FolloweeId: cmd[2],
+			})
+			if err == nil {
+				fmt.Println("Success")
+			}
+			return err
+		})
+
+	case "followers":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: followers <user_id>")
+		}
+		return run(app, func(c socialpb.FollowServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetFollowers(ctx, &socialpb.GetFollowersRequest{
+				UserId: cmd[1],
+			})
+			if err != nil {
+				return err
+			}
+			var ids []string
+			for _, f := range res.Followers {
+				ids = append(ids, f.FollowerId)
+			}
+			fmt.Printf("Followers: %v\n", ids)
+			return nil
+		})
+
+	case "following":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: following <user_id>")
+		}
+		return run(app, func(c socialpb.FollowServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetFollowing(ctx, &socialpb.GetFollowingRequest{
+				UserId: cmd[1],
+			})
+			if err != nil {
+				return err
+			}
+			var ids []string
+			for _, f := range res.Following {
+				ids = append(ids, f.FolloweeId)
+			}
+			fmt.Printf("Following: %v\n", ids)
+			return nil
+		})
+
+	case "repeat":
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: repeat <count> <command...>")
+		}
+		count, err := strconv.Atoi(cmd[1])
+		if err != nil {
+			return fmt.Errorf("invalid count: %v", err)
+		}
+
+		subCmd := cmd[2:]
+		for i := 0; i < count; i++ {
+			if err := processCommand(app, subCmd); err != nil {
+				fmt.Printf("iteration %d failed: %v\n", i, err)
+			}
+		}
+		return nil
+
+	case "create_user":
+		if len(cmd) < 4 {
+			return fmt.Errorf("usage: create_user <name> <email> <password>")
+		}
+		return runUser(app, func(c userpb.UserServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.CreateUser(ctx, &userpb.CreateUserRequest{
+				Name:     cmd[1],
+				Email:    cmd[2],
+				Password: cmd[3],
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Created User: %s (ID: %s)\n", res.Name, res.Id)
+			return nil
+		})
+
+	case "get_user":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: get_user <id>")
+		}
+		return runUser(app, func(c userpb.UserServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetUserByID(ctx, &userpb.GetUserByIDRequest{
+				Id: cmd[1],
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("User: %s (Email: %s, Bio: %s)\n", res.Name, res.Email, res.Bio)
+			return nil
+		})
+
+	case "get_user_by_email":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: get_user_by_email <email>")
+		}
+		return runUser(app, func(c userpb.UserServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetUserByEmail(ctx, &userpb.GetUserByEmailRequest{
+				Email: cmd[1],
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("User: %s (ID: %s, Bio: %s)\n", res.Name, res.Id, res.Bio)
+			return nil
+		})
+
+	case "modify_bio":
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: modify_bio <id> <bio>")
+		}
+		return runUser(app, func(c userpb.UserServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			// Join remaining args for bio as it might contain spaces
+			bio := strings.Join(cmd[2:], " ")
+			res, err := c.ModifyBio(ctx, &userpb.ModifyBioRequest{
+				Id:  cmd[1],
+				Bio: bio,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Updated Bio for %s: %s\n", res.Name, res.Bio)
+			return nil
+		})
 
 	default:
-		return fmt.Errorf("unknown command: %s", tokens[0])
+		return fmt.Errorf("unknown command: %s", cmd[0])
 	}
 }
 
-func printUser(u *pb.User) {
-	fmt.Println("User:")
-	fmt.Println("ID:", u.Id)
-	fmt.Println("Name:", u.Name)
-	fmt.Println("Email:", u.Email)
-	fmt.Println("Bio:", u.Bio)
-	fmt.Println("Followers:", u.FollowerCount)
-}
-
-func createUser(a *App, name, password string,email string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	req := &pb.CreateUserRequest{Name: name, Password: password,Email: email}
-	resp, err := a.client.CreateUser(ctx, req)
-	if err != nil {
-		return err
+func run(app *client.App, fn func(socialpb.FollowServiceClient) error) error {
+	if err := app.Ensure(); err != nil {
+		return fmt.Errorf("connection error: %w", err)
 	}
-	printUser(resp)
+	if err := fn(app.Client()); err != nil {
+		return fmt.Errorf("rpc error: %w", err)
+	}
 	return nil
 }
 
-func getUser(a *App, id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	req := &pb.GetUserByIDRequest{Id: id}
-	resp, err := a.client.GetUserByID(ctx, req)
-	if err != nil {
-		return err
+func runUser(app *client.App, fn func(userpb.UserServiceClient) error) error {
+	if err := app.Ensure(); err != nil {
+		return fmt.Errorf("connection error: %w", err)
 	}
-	printUser(resp)
+	if err := fn(app.UserClient()); err != nil {
+		return fmt.Errorf("rpc error: %w", err)
+	}
 	return nil
 }
-
-
-func getUserByEmail(a *App, email string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	resp, err := a.client.GetUserByEmail(ctx, &pb.GetUserByEmailRequest{
-		Email: email,
-	})
-	if err != nil {
-		return err
-	}
-
-	printUser(resp)
-	return nil
-}
-
-func modifyBio(a *App, id, bio string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	resp, err := a.client.ModifyBio(ctx, &pb.ModifyBioRequest{
-		Id:  id,
-		Bio: bio,
-	})
-	if err != nil {
-		return err
-	}
-
-	printUser(resp)
-	return nil
-}
-
-

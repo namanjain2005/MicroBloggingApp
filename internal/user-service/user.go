@@ -81,7 +81,7 @@ func CreateUser(ctx context.Context, col *mongo.Collection, req *pb.CreateUserRe
 	}, nil
 }
 
-func GetUserByID(ctx context.Context, col *mongo.Collection,req *pb.GetUserByIDRequest) (*pb.User, error) {
+func GetUserByID(ctx context.Context, col *mongo.Collection, req *pb.GetUserByIDRequest) (*pb.User, error) {
 	if req.Id == "" {
 		return nil, errors.New("user id is required")
 	}
@@ -105,7 +105,7 @@ func GetUserByID(ctx context.Context, col *mongo.Collection,req *pb.GetUserByIDR
 	}, nil
 }
 
-func GetUserByEmail(ctx context.Context, col *mongo.Collection,req *pb.GetUserByEmailRequest) (*pb.User, error) {
+func GetUserByEmail(ctx context.Context, col *mongo.Collection, req *pb.GetUserByEmailRequest) (*pb.User, error) {
 	if req.Email == "" {
 		return nil, errors.New("Need email to retrieve getUser")
 	}
@@ -160,6 +160,4 @@ func ModifyBio(ctx context.Context, col *mongo.Collection, req *pb.ModifyBioRequ
 		Bio:           user.Bio,
 		CreatedAt:     timestamppb.New(user.CreatedAt),
 	}, nil
-}			
-
-
+}

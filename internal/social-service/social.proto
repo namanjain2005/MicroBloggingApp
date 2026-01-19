@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package social;
+
+option go_package = "socialpb/";
+
+import "google/protobuf/timestamp.proto";
+
+service FollowService {
+  
+  rpc FollowUser(FollowUserRequest) returns (FollowUserResponse);
+
+  rpc UnfollowUser(UnfollowUserRequest) returns (UnfollowUserResponse);
+
+  rpc IsFollowing(IsFollowingRequest) returns (IsFollowingResponse);
+
+  rpc GetFollowing(GetFollowingRequest) returns (GetFollowingResponse);
+
+  rpc GetFollowers(GetFollowersRequest) returns (GetFollowersResponse);
+}
+
+
+message FollowUserRequest {
+  string follower_id = 1;
+  string followee_id = 2;
+}
+
+message FollowUserResponse {
+  bool success = 1;
+}
+
+message UnfollowUserRequest {
+  string follower_id = 1;
+  string followee_id = 2;
+}
+
+message UnfollowUserResponse {
+  bool success = 1;
+}
+
+message IsFollowingRequest {
+  string follower_id = 1;
+  string followee_id = 2;
+}
+
+message IsFollowingResponse {
+  bool is_following = 1;
+}
+
+message Pagination {
+  int32 limit = 1;          // e.g. 20
+  string cursor = 2;        // last seen follow_id or timestamp for BTree thing
+}
+
+message GetFollowingRequest {
+  string user_id = 1;
+  Pagination pagination = 2;
+}
+
+message FollowingEdge {
+  string followee_id = 1;
+  google.protobuf.Timestamp followed_at = 2;
+}
+
+message GetFollowingResponse {
+  repeated FollowingEdge following = 1;
+  string next_cursor = 2;
+}
+
+message GetFollowersRequest {
+  string user_id = 1;
+  Pagination pagination = 2;
+}
+
+message FollowerEdge {
+  string follower_id = 1;
+  google.protobuf.Timestamp followed_at = 2;
+}
+
+message GetFollowersResponse {
+  repeated FollowerEdge followers = 1;
+  string next_cursor = 2;
+}

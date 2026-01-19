@@ -3,63 +3,54 @@ package main
 import (
 	"context"
 	"log"
-	"net"
-	"time"
-
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"google.golang.org/grpc"
-
 	"microBloggingAPP/internal/config"
+	socialservice "microBloggingAPP/internal/social-service"
+	socialpb "microBloggingAPP/internal/social-service/socialpb"
 	userservice "microBloggingAPP/internal/user-service"
-	pb "microBloggingAPP/internal/user-service/userpb"
+	userpb "microBloggingAPP/internal/user-service/userpb"
+	"net"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
 	cfg := config.Load()
-
-	log.Printf("Starting User Service\n")
-	log.Printf("Environment: %s\n", cfg.App.Env)
-	log.Printf("MongoDB URI: %s\n", cfg.MongoDB.URI)
-	log.Printf("Database: %s, Collection: %s\n", cfg.MongoDB.DBName, cfg.MongoDB.CollectionName)
-	log.Printf("gRPC Server: %s\n", cfg.GRPC.Address())
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.MongoDB.Timeout)*time.Second)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoDB.URI))
-	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
-	}
-	defer func() {
-		if err = client.Disconnect(context.Background()); err != nil {
-			log.Fatalf("Failed to disconnect from MongoDB: %v", err)
-		}
-	}()
-
-	//verifying by pinging
-	err = client.Ping(context.Background(), nil)
-	if err != nil {
-		log.Fatalf("Failed to ping MongoDB: %v", err)
-	}
-	log.Println("Successfully connected to MongoDB")
-
-	collection := client.Database(cfg.MongoDB.DBName).Collection(cfg.MongoDB.CollectionName)
+	defer cfg.Mongo.Client.Disconnect(context.Background())
+	
+	log.Println("Starting MicroBlogging Service")
+	log.Printf("Environment: %s", cfg.App.Env)
+	log.Printf("MongoDB URI: %s", cfg.Mongo.URI)
+	log.Printf(
+		"Database: %s | UserCollection: %s | FollowCollection: %s",
+		cfg.Mongo.DBName,
+		cfg.Mongo.UserCollection.Name(),
+		cfg.Mongo.FollowCollection.Name(),
+	)
+	log.Printf("gRPC Server: %s", cfg.GRPC.Address())
 
 	grpcServer := grpc.NewServer()
-	userServer := userservice.NewServer(collection)
 
-	pb.RegisterUserServiceServer(grpcServer, userServer)
+	// Register User Service
+	userServer := userservice.NewServer(cfg.Mongo.UserCollection)
+	userpb.RegisterUserServiceServer(grpcServer, userServer)
+
+	// Register Follow Service
+	followServer := socialservice.NewServer(
+		cfg.Mongo.Client,
+		cfg.Mongo.FollowCollection,
+		cfg.Mongo.UserCollection,
+	)
+	socialpb.RegisterFollowServiceServer(grpcServer, followServer)
 
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
-		log.Fatalf("Failed to listen on %s: %v", cfg.GRPC.Address(), err)
+		log.Fatalf("failed to listen on %s: %v", cfg.GRPC.Address(), err)
 	}
 	defer listener.Close()
-	log.Printf("User Service listening on %s\n", listener.Addr().String())
+
+	log.Printf("Service listening on %s", listener.Addr())
 
 	if err := grpcServer.Serve(listener); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		log.Fatalf("grpc serve failed: %v", err)
 	}
-
 }
