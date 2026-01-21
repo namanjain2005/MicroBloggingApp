@@ -3,15 +3,15 @@ package config
 import (
 	"context"
 	"fmt"
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Config holds all configuration for the application
@@ -28,6 +28,7 @@ type Mongo struct {
 	DB               *mongo.Database
 	UserCollection   *mongo.Collection
 	FollowCollection *mongo.Collection
+	PostCollection   *mongo.Collection
 	Client           *mongo.Client
 	Timeout          int
 }
@@ -54,6 +55,7 @@ func Load() *Config {
 		"MONGO_DB_NAME",
 		"MONGO_USER_COLLECTION",
 		"MONGO_FOLLOW_COLLECTION",
+		"MONGO_POST_COLLECTION",
 		"MONGO_TIMEOUT",
 		"GRPC_HOST",
 		"GRPC_PORT",
@@ -100,12 +102,13 @@ func Load() *Config {
 	cfg.initMongo(
 		vals["MONGO_USER_COLLECTION"],
 		vals["MONGO_FOLLOW_COLLECTION"],
+		vals["MONGO_POST_COLLECTION"],
 	)
 
 	return cfg
 }
 
-func (c *Config) initMongo(userCol, followCol string) {
+func (c *Config) initMongo(userCol, followCol, postCol string) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		time.Duration(c.Mongo.Timeout)*time.Second,
@@ -123,12 +126,42 @@ func (c *Config) initMongo(userCol, followCol string) {
 	c.Mongo.DB = db
 	c.Mongo.UserCollection = db.Collection(userCol)
 	c.Mongo.FollowCollection = db.Collection(followCol)
+	c.Mongo.PostCollection = db.Collection(postCol)
 
 	c.ensureIndexes(ctx)
 }
 
-func (c *Config) ensureIndexes(ctx context.Context) {//do testing with removing index and adding to see effects
-	_, err := c.Mongo.FollowCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+func (c *Config) ensureIndexes(ctx context.Context) { //do testing with removing index and adding to see effects
+	// New PostCollection indexes
+	_, err := c.Mongo.PostCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "_id", Value: 1},
+		},
+	})
+	if err != nil {
+		log.Fatalf("post index _id creation failed: %v", err)
+	}
+
+	_, err = c.Mongo.PostCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "parentId", Value: 1},
+		},
+	})
+	if err != nil {
+		log.Fatalf("post index parentId creation failed: %v", err)
+	}
+
+	_, err = c.Mongo.PostCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "rootId", Value: 1},
+		},
+	})
+	if err != nil {
+		log.Fatalf("post index rootId creation failed: %v", err)
+	}
+
+	// Existing FollowCollection indexes
+	_, err = c.Mongo.FollowCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{
 			{Key: "followerId", Value: 1},
 			{Key: "followeeId", Value: 1},
@@ -147,12 +180,13 @@ func (c *Config) ensureIndexes(ctx context.Context) {//do testing with removing 
 	if err != nil {
 		log.Fatalf("follow index creation failed: %v", err)
 	}
-	
+
+	// Existing UserCollection index
 	_, err = c.Mongo.UserCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{
 			{Key: "_id", Value: 1},
 		},
-		Options: options.Index().SetUnique(true),
+		//should not this also set to unique
 	})
 	if err != nil {
 		log.Fatalf("user index creation failed: %v", err)

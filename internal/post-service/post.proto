@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package post;
+
+option go_package = "postpb/";
+
+import "google/protobuf/timestamp.proto";
+
+service PostService {
+  rpc CreatePost(CreatePostRequest) returns (CreatePostResponse);
+  rpc DeletePost(DeletePostRequest) returns (DeletePostResponse);
+  
+  rpc GetPost(GetPostRequest) returns (GetPostResponse);
+
+ // rpc GetUserTimeline(GetUserTimelineRequest)
+   //   returns (GetUserTimelineResponse);
+
+  rpc GetReplies(GetRepliesRequest)
+      returns (GetRepliesResponse);
+  
+  rpc GetThread(GetThreadRequest)
+      returns (GetThreadResponse);
+
+  rpc LikePost(LikePostRequest)
+      returns (LikePostResponse);
+
+  rpc UnlikePost(UnlikePostRequest)
+      returns (UnlikePostResponse);
+
+  //rpc ViewPost(ViewPostRequest)
+    //  returns (ViewPostResponse);
+}
+
+message Post {//try imbedding images later
+  string id = 1;
+  string author_id = 2;
+  string text = 3;
+
+  string parent_post_id = 4; // empty = original Post
+  string root_post_id = 5;   // empty = original Post
+
+  int64 reply_count = 6;
+  int64 like_count = 7;
+  int64 view_count = 8;
+  int64 repost_count = 9;
+
+  bool is_deleted = 10;
+
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreatePostRequest {
+  string author_id = 1;
+  string text = 2;
+  string parent_Post_id = 3; // optional
+}
+
+message CreatePostResponse {
+  Post post = 1;
+}
+
+message DeletePostRequest {
+  string post_id = 1;
+  string requester_id = 2;
+}
+
+message DeletePostResponse {
+  bool success = 1;
+}
+
+message GetPostRequest {
+  string post_id = 1;
+}
+
+message GetPostResponse {
+  Post post = 1;
+}
+
+message GetUserTimelineRequest {
+  string user_id = 1;
+  string cursor = 2; // last seen post_id or timestamp encoded
+  int32 limit = 3;
+}
+
+message GetUserTimelineResponse {
+  repeated Post posts = 1;
+  string next_cursor = 2;
+}
+
+message GetRepliesRequest {
+  string post_id = 1;
+
+  string cursor = 2;
+  int32 limit = 3;
+}
+
+message GetRepliesResponse {
+  repeated Post replies = 1;
+  string next_cursor = 2;
+}
+
+
+message GetThreadRequest {
+  string root_post_id = 1;
+}
+
+message GetThreadResponse {
+  repeated Post posts = 1;
+}
+
+
+message LikePostRequest {
+  string post_id = 1;
+  string user_id = 2;
+}
+
+message LikePostResponse {
+  bool success = 1;
+}
+
+message UnlikePostRequest {
+  string post_id = 1;
+  string user_id = 2;
+}
+
+message UnlikePostResponse {
+  bool success = 1;
+}
+
+
+message ViewPostRequest {
+  string post_id = 1;
+  string viewer_id = 2; // optional (empty for anon)
+}
+
+message ViewPostResponse {
+  bool success = 1;
+}

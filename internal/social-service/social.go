@@ -47,7 +47,7 @@ func FollowUserReq(
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	if count != 2 {
-		return nil, status.Error(codes.NotFound, "one or both users do not exist")
+	return nil, status.Error(codes.NotFound, "one or both users do not exist")
 	}
 
 	followDoc := bson.M{

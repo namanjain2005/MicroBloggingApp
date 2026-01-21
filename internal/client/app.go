@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	postpb "microBloggingAPP/internal/post-service/postpb"
 	pb "microBloggingAPP/internal/social-service/socialpb"
 	userpb "microBloggingAPP/internal/user-service/userpb"
 	"sync"
@@ -18,6 +19,7 @@ type App struct {
 	conn         *grpc.ClientConn
 	followclient pb.FollowServiceClient
 	userClient   userpb.UserServiceClient
+	postClient   postpb.PostServiceClient
 }
 
 func New(addr string) *App {
@@ -35,6 +37,7 @@ func (a *App) connect() error {
 	a.conn = conn
 	a.followclient = pb.NewFollowServiceClient(conn)
 	a.userClient = userpb.NewUserServiceClient(conn)
+	a.postClient = postpb.NewPostServiceClient(conn)
 	return nil
 }
 
@@ -71,6 +74,10 @@ func (a *App) FollowClient() pb.FollowServiceClient {
 
 func (a *App) UserClient() userpb.UserServiceClient {
 	return a.userClient
+}
+
+func (a *App) PostClient() postpb.PostServiceClient {
+	return a.postClient
 }
 
 func Ctx() (context.Context, context.CancelFunc) {

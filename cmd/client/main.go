@@ -6,6 +6,7 @@ import (
 	"log"
 	"microBloggingAPP/internal/client"
 	"microBloggingAPP/internal/config"
+	"microBloggingAPP/internal/post-service/postpb"
 	"microBloggingAPP/internal/social-service/socialpb"
 	"microBloggingAPP/internal/user-service/userpb"
 	"os"
@@ -26,6 +27,7 @@ func main() {
 	fmt.Println("Connected to", addr)
 	fmt.Println("Commands: follow, unfollow, followers, following, repeat")
 	fmt.Println("User Commands: create_user, get_user, get_user_by_email, modify_bio")
+	fmt.Println("Post Commands: create_post, get_post, delete_post, like_post, unlike_post, get_replies, get_thread")
 	fmt.Println("Other: exit")
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -221,6 +223,179 @@ func processCommand(app *client.App, cmd []string) error {
 			return nil
 		})
 
+	// case "create_post":
+	// 	if len(cmd) < 3 {
+	// 		return fmt.Errorf("usage: create_post <author_id> <text> [parent_post_id]")
+	// 	}
+	// 	return runPost(app, func(c postpb.PostServiceClient) error {
+	// 		ctx, cancel := client.Ctx()
+	// 		defer cancel()
+	// 		text := strings.Join(cmd[2:], " ")
+	// 		parentId := ""
+	// 		// Check if last arg looks like an ID (for parent)
+	// 		if len(cmd) > 3 {
+	// 			// Simple heuristic: if user wants parent, they use: create_post <author> <parent_id> <text>
+	// 			// For simplicity, just use all args after author as text
+	// 		}
+	// 		res, err := c.CreatePost(ctx, &postpb.CreatePostRequest{
+	// 			AuthorId:      cmd[1],
+	// 			Text:          text,
+	// 			Parent_PostId: parentId,
+	// 		})
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		fmt.Printf("Created Post: %s (Author: %s)\n", res.Post.Id, res.Post.AuthorId)
+	// 		return nil
+	// 	})
+
+	case "create_post":
+		if len(cmd) < 4 {
+			return fmt.Errorf("usage: create_post <author_id> <parent_post_id|-> <text>")
+		}
+
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+
+			authorId := cmd[1]
+
+			parentId := cmd[2]
+			if parentId == "-" {
+				parentId = ""
+			}
+
+			text := strings.Join(cmd[3:], " ")
+			if text == "" {
+				return fmt.Errorf("post text cannot be empty")
+			}
+
+			res, err := c.CreatePost(ctx, &postpb.CreatePostRequest{
+				AuthorId:      authorId,
+				Text:          text,
+				Parent_PostId: parentId,
+			})
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf(
+				"Created Post: %s (Author: %s, Parent: %s)\n",
+				res.Post.Id,
+				res.Post.AuthorId,
+				res.Post.ParentPostId,
+			)
+			return nil
+		})
+
+	case "get_post":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: get_post <post_id>")
+		}
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetPost(ctx, &postpb.GetPostRequest{
+				PostId: cmd[1],
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Post: %s\nAuthor: %s\nText: %s\nLikes: %d\n", res.Post.Id, res.Post.AuthorId, res.Post.Text, res.Post.LikeCount)
+			return nil
+		})
+
+	case "delete_post":
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: delete_post <post_id> <requester_id>")
+		}
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			_, err := c.DeletePost(ctx, &postpb.DeletePostRequest{
+				PostId:      cmd[1],
+				RequesterId: cmd[2],
+			})
+			if err == nil {
+				fmt.Println("Post deleted successfully")
+			}
+			return err
+		})
+
+	case "like_post":
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: like_post <post_id> <user_id>")
+		}
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			_, err := c.LikePost(ctx, &postpb.LikePostRequest{
+				PostId: cmd[1],
+				UserId: cmd[2],
+			})
+			if err == nil {
+				fmt.Println("Post liked successfully")
+			}
+			return err
+		})
+
+	case "unlike_post":
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: unlike_post <post_id> <user_id>")
+		}
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			_, err := c.UnlikePost(ctx, &postpb.UnlikePostRequest{
+				PostId: cmd[1],
+				UserId: cmd[2],
+			})
+			if err == nil {
+				fmt.Println("Post unliked successfully")
+			}
+			return err
+		})
+
+	case "get_replies":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: get_replies <post_id>")
+		}
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetReplies(ctx, &postpb.GetRepliesRequest{
+				PostId: cmd[1],
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Replies (%d):\n", len(res.Replies))
+			for _, r := range res.Replies {
+				fmt.Printf("  - %s: %s\n", r.Id, r.Text)
+			}
+			return nil
+		})
+
+	case "get_thread":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: get_thread <root_post_id>")
+		}
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetThread(ctx, &postpb.GetThreadRequest{
+				RootPostId: cmd[1],
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Thread (%d posts):\n", len(res.Posts))
+			for _, p := range res.Posts {
+				fmt.Printf("  - %s: %s\n", p.Id, p.Text)
+			}
+			return nil
+		})
+
 	default:
 		return fmt.Errorf("unknown command: %s", cmd[0])
 	}
@@ -241,6 +416,16 @@ func runUser(app *client.App, fn func(userpb.UserServiceClient) error) error {
 		return fmt.Errorf("connection error: %w", err)
 	}
 	if err := fn(app.UserClient()); err != nil {
+		return fmt.Errorf("rpc error: %w", err)
+	}
+	return nil
+}
+
+func runPost(app *client.App, fn func(postpb.PostServiceClient) error) error {
+	if err := app.Ensure(); err != nil {
+		return fmt.Errorf("connection error: %w", err)
+	}
+	if err := fn(app.PostClient()); err != nil {
 		return fmt.Errorf("rpc error: %w", err)
 	}
 	return nil

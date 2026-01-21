@@ -5,6 +5,8 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"microBloggingAPP/internal/config"
+	postservice "microBloggingAPP/internal/post-service"
+	postpb "microBloggingAPP/internal/post-service/postpb"
 	socialservice "microBloggingAPP/internal/social-service"
 	socialpb "microBloggingAPP/internal/social-service/socialpb"
 	userservice "microBloggingAPP/internal/user-service"
@@ -20,10 +22,11 @@ func main() {
 	log.Printf("Environment: %s", cfg.App.Env)
 	log.Printf("MongoDB URI: %s", cfg.Mongo.URI)
 	log.Printf(
-		"Database: %s | UserCollection: %s | FollowCollection: %s",
+		"Database: %s | UserCollection: %s | FollowCollection: %s | PostCollection: %s",
 		cfg.Mongo.DBName,
 		cfg.Mongo.UserCollection.Name(),
 		cfg.Mongo.FollowCollection.Name(),
+		cfg.Mongo.PostCollection.Name(),
 	)
 	log.Printf("gRPC Server: %s", cfg.GRPC.Address())
 
@@ -40,6 +43,13 @@ func main() {
 		cfg.Mongo.UserCollection,
 	)
 	socialpb.RegisterFollowServiceServer(grpcServer, followServer)
+
+	// Register Post Service
+	postServer := postservice.NewServer(
+		cfg.Mongo.PostCollection,
+		cfg.Mongo.UserCollection,
+	)
+	postpb.RegisterPostServiceServer(grpcServer, postServer)
 
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
