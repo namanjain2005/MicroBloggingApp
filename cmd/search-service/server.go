@@ -12,9 +12,15 @@ import (
 func main() {
 	grpcServer := grpc.NewServer()
 	ConnStr := "amqp://guest:guest@localhost:5672/"
-	searchServer,err := searchservice.NewServer(ConnStr)
+	// NOTE this always need to be small case
+	UserIndexName := "user"
+	searchServer,err := searchservice.NewServer(ConnStr,UserIndexName)
 	if err !=nil{
 		log.Fatalf("failed to create Server : %v", err)
+	}
+	err = searchServer.Subsribe()
+	if err != nil{
+		log.Fatalf("Failed to Subscribe : %v",err)
 	}
 	searchpb.RegisterSearchServiceServer(grpcServer, searchServer)
 	
