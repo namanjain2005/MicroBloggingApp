@@ -5,14 +5,13 @@ import (
 	"errors"
 	pb "microBloggingAPP/internal/post-service/postpb"
 	//userpb "microBloggingAPP/internal/user-service/userpb" // should decouple
-	"time"
-
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
 )
 
 type Post struct {

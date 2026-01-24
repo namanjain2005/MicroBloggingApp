@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"google.golang.org/grpc"
+	"fmt"
 	"log"
 	"microBloggingAPP/internal/config"
 	postservice "microBloggingAPP/internal/post-service"
@@ -12,6 +12,8 @@ import (
 	userservice "microBloggingAPP/internal/user-service"
 	userpb "microBloggingAPP/internal/user-service/userpb"
 	"net"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -33,7 +35,12 @@ func main() {
 	grpcServer := grpc.NewServer()
 
 	// Register User Service
-	userServer := userservice.NewServer(cfg.Mongo.UserCollection)
+	userServerConnStr := "amqp://guest:guest@localhost:5672/"
+	userServer,err := userservice.NewServer(cfg.Mongo.UserCollection,userServerConnStr)
+	if err != nil{
+		fmt.Printf("%v",err)
+		return
+	}
 	userpb.RegisterUserServiceServer(grpcServer, userServer)
 
 	// Register Follow Service
