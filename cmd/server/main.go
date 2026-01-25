@@ -2,18 +2,23 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"microBloggingAPP/internal/config"
 	postservice "microBloggingAPP/internal/post-service"
 	postpb "microBloggingAPP/internal/post-service/postpb"
+	searchpb "microBloggingAPP/internal/search-service/searchpb"
 	socialservice "microBloggingAPP/internal/social-service"
 	socialpb "microBloggingAPP/internal/social-service/socialpb"
 	userservice "microBloggingAPP/internal/user-service"
 	userpb "microBloggingAPP/internal/user-service/userpb"
 	"net"
+	"net/http"
+	"strconv"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -58,12 +63,57 @@ func main() {
 	)
 	postpb.RegisterPostServiceServer(grpcServer, postServer)
 
+	// Register Search Service
+	//searchServerConnStr := "amqp://guest:guest@localhost:5672/"
+	//UserIndexName := "user"
+	//searchServer, err := searchservice.NewServer(searchServerConnStr, UserIndexName)
+	//if err != nil {
+	//	fmt.Printf("Failed to create search service: %v\n", err)
+	//	return
+	//}
+	//err = searchServer.Subsribe()
+	//if err != nil{
+	//	log.Fatalf("Failed to Subscribe : %v",err)
+	//}
+	//searchpb.RegisterSearchServiceServer(grpcServer, searchServer)
+
+	conn,err:=grpc.NewClient("localhost:50053",grpc.WithTransportCredentials(insecure.NewCredentials()),)
+	if err !=nil{
+		log.Fatalf("failed to connect to search server %v",err)
+	}
+	defer conn.Close()
+	
+	
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
 		log.Fatalf("failed to listen on %s: %v", cfg.GRPC.Address(), err)
 	}
 	defer listener.Close()
 
+	client := searchpb.NewSearchServiceClient(conn)
+
+	http.HandleFunc("/searchUser", func(w http.ResponseWriter, req *http.Request){
+		query := req.URL.Query().Get("q")
+		limit,err := strconv.Atoi(req.URL.Query().Get("limit"))
+		if err!=nil{
+			http.Error(w, "Invalid Query", 400)
+		}
+		offset,err:= strconv.Atoi(req.URL.Query().Get("offset"))
+		if err !=nil{
+				http.Error(w, "Invalid Query", 400)		
+		}
+		resp,err := client.SearchUsers(context.TODO(),&searchpb.SearchUsersRequest{
+			Query: query,
+			Pagination: &searchpb.Pagination{
+				Limit: uint32(limit),
+				Offset: uint32(offset),
+			},
+		})
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	log.Printf("service listening on localhost:50053")
+	
 	log.Printf("Service listening on %s", listener.Addr())
 
 	if err := grpcServer.Serve(listener); err != nil {

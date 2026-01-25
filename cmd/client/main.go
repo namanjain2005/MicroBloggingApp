@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"microBloggingAPP/internal/client"
 	"microBloggingAPP/internal/config"
 	"microBloggingAPP/internal/post-service/postpb"
+	"microBloggingAPP/internal/search-service/searchpb"
 	"microBloggingAPP/internal/social-service/socialpb"
 	"microBloggingAPP/internal/user-service/userpb"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -28,6 +31,7 @@ func main() {
 	fmt.Println("Commands: follow, unfollow, followers, following, repeat")
 	fmt.Println("User Commands: create_user, get_user, get_user_by_email, modify_bio")
 	fmt.Println("Post Commands: create_post, get_post, delete_post, like_post, unlike_post, get_replies, get_thread")
+	fmt.Println("Search Commands: search_user <query>")
 	fmt.Println("Other: exit")
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -396,9 +400,51 @@ func processCommand(app *client.App, cmd []string) error {
 			return nil
 		})
 
+	case "search_user":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: search_user <query>")
+		}
+
+		gateWayURL := "http://localhost:8080"
+		query := strings.Join(cmd[1:], " ")
+		url := fmt.Sprintf("%s?q=%s&limit=5&offset=0", gateWayURL, query)
+		resp, err := http.Get(url)
+		if err != nil {
+			return fmt.Errorf("%v", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("%v", err)
+		}
+		fmt.Println("Server Response:")
+		fmt.Printf("%s\n\n", string(body))
+		// return runSearch(app, func(c searchpb.SearchServiceClient) error {
+		// 	ctx, cancel := client.Ctx()
+		// 	defer cancel()
+		// 	query := strings.Join(cmd[1:], " ")
+		// 	res, err := c.SearchUsers(ctx, &searchpb.SearchUsersRequest{
+		// 		Query: query,
+		// 		Pagination: &searchpb.Pagination{
+		// 			Limit:  10,
+		// 			Offset: 0,
+		// 		},
+		// 	})
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	fmt.Printf("Found %d users:\n", res.Meta.Total)
+		// 	for _, u := range res.Users {
+		// 		fmt.Printf("  - %s (ID: %s, Email: %s)\n", u.Username, u.UserId, u.Email)
+		// 	}
+		// 	return nil
+		// })
+
 	default:
 		return fmt.Errorf("unknown command: %s", cmd[0])
 	}
+	return nil
 }
 
 func run(app *client.App, fn func(socialpb.FollowServiceClient) error) error {
@@ -426,6 +472,16 @@ func runPost(app *client.App, fn func(postpb.PostServiceClient) error) error {
 		return fmt.Errorf("connection error: %w", err)
 	}
 	if err := fn(app.PostClient()); err != nil {
+		return fmt.Errorf("rpc error: %w", err)
+	}
+	return nil
+}
+
+func runSearch(app *client.App, fn func(searchpb.SearchServiceClient) error) error {
+	if err := app.Ensure(); err != nil {
+		return fmt.Errorf("connection error: %w", err)
+	}
+	if err := fn(app.SearchClient()); err != nil {
 		return fmt.Errorf("rpc error: %w", err)
 	}
 	return nil

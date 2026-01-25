@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	postpb "microBloggingAPP/internal/post-service/postpb"
+	searchpb "microBloggingAPP/internal/search-service/searchpb"
 	pb "microBloggingAPP/internal/social-service/socialpb"
 	userpb "microBloggingAPP/internal/user-service/userpb"
 	"sync"
@@ -20,6 +21,7 @@ type App struct {
 	followclient pb.FollowServiceClient
 	userClient   userpb.UserServiceClient
 	postClient   postpb.PostServiceClient
+	searchClient searchpb.SearchServiceClient
 }
 
 func New(addr string) *App {
@@ -29,7 +31,7 @@ func New(addr string) *App {
 func (a *App) connect() error {
 	conn, err := grpc.NewClient(
 		a.addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()), //needs attention
+		grpc.WithTransportCredentials(insecure.NewCredentials()), // TODO needs attention
 	)
 	if err != nil {
 		return err
@@ -38,6 +40,7 @@ func (a *App) connect() error {
 	a.followclient = pb.NewFollowServiceClient(conn)
 	a.userClient = userpb.NewUserServiceClient(conn)
 	a.postClient = postpb.NewPostServiceClient(conn)
+	a.searchClient = searchpb.NewSearchServiceClient(conn)
 	return nil
 }
 
@@ -78,6 +81,10 @@ func (a *App) UserClient() userpb.UserServiceClient {
 
 func (a *App) PostClient() postpb.PostServiceClient {
 	return a.postClient
+}
+
+func (a *App) SearchClient() searchpb.SearchServiceClient {
+	return a.searchClient
 }
 
 func Ctx() (context.Context, context.CancelFunc) {
