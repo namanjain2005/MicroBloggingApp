@@ -37,7 +37,7 @@ func NewServer(connStr string, UserIndexName string) (*ServiceSearchServer, erro
 		return nil, err
 	}
 
-	err = amqpChan.ExchangeDeclare("UserTopic", "topic", true, false, false, false, nil)
+	err = amqpChan.ExchangeDeclare("UserFanOut", "fanout", true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func NewServer(connStr string, UserIndexName string) (*ServiceSearchServer, erro
 	if err != nil {
 		return nil, err
 	}
-	err = amqpChan.QueueBind("UserService", "User.*", "UserTopic", false, nil)
+	err = amqpChan.QueueBind("UserService", "User.*", "UserFanOut", false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -96,13 +96,12 @@ func NewServer(connStr string, UserIndexName string) (*ServiceSearchServer, erro
 }
 
 func (s *ServiceSearchServer) userHandler(T any) pubsub.AckType {
-	fmt.Printf("%v\n", T)
 	data, err := json.Marshal(T)
 	if err != nil {
 		fmt.Printf("failed to marshal - %v\n", err)
 		return pubsub.NackDiscard
 	}
-	fmt.Printf("%v\n", data)
+	
 	req := esapi.IndexRequest{
 		Index:   s.indexName,
 		Body:    bytes.NewReader(data),

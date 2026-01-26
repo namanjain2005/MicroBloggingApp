@@ -29,7 +29,7 @@ type ServiceUserServer struct {
 
 const (
 	UserService       = "UserService"
-	ExchangeUserTopic = "UserTopic"
+	ExchangeUserFanOut = "UserFanOut"
 )
 
 func NewServer(col *mongo.Collection, connStr string) (*ServiceUserServer, error) {
@@ -43,21 +43,8 @@ func NewServer(col *mongo.Collection, connStr string) (*ServiceUserServer, error
 		amqpConn.Close()
 		return nil, err
 	}
-
-	_, err = amqpChan.QueueDeclare(UserService, true, false, false, false, nil)
-	if err != nil {
-		amqpConn.Close()
-		return nil, err
-	}
-
-	// TODO may be this should fanout 
-	err = amqpChan.ExchangeDeclare(ExchangeUserTopic, "topic", true, false, false, false, nil)
-	if err != nil {
-		amqpConn.Close()
-		return nil, err
-	}
-
-	err = amqpChan.QueueBind(UserService, "User.*", ExchangeUserTopic, false, nil)
+	
+	err = amqpChan.ExchangeDeclare(ExchangeUserFanOut, "fanout", true, false, false, false, nil)
 	if err != nil {
 		amqpConn.Close()
 		return nil, err
@@ -97,7 +84,7 @@ func (s *ServiceUserServer) CreateUser(ctx context.Context, req *pb.CreateUserRe
 		return nil, err
 	}
 
-	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserTopic,"User.create", user)
+	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut,"User.create", user)
 
 	return &pb.User{
 		Id:             user.Id,
