@@ -25,7 +25,10 @@ type ServiceUserServer struct {
 	//connStr string
 }
 
-
+type userEventLog struct{
+	user User
+	EventName string
+}
 
 const (
 	UserService       = "UserService"
@@ -84,7 +87,14 @@ func (s *ServiceUserServer) CreateUser(ctx context.Context, req *pb.CreateUserRe
 		return nil, err
 	}
 
-	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut,"User.create", user)
+	userMsg := &userEventLog{
+		// TODO should it be value or address i think this is a
+		// feature of may json.Marshal but in concept it is still struct as value
+		user: *user,
+		EventName: "create",
+	}
+
+	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut,"User.create", userMsg)
 
 	return &pb.User{
 		Id:             user.Id,
