@@ -20,7 +20,7 @@ import (
 
 type ServiceSearchServer struct {
 	pb.UnimplementedSearchServiceServer
-	amqpConn            *amqp.Connection
+	amqpConn            *amqp.Connection // do i need it ?? 
 	amqpChan            *amqp.Channel
 	elasticSearchClient *elasticsearch.Client
 	ctx                 context.Context
@@ -37,16 +37,17 @@ func NewServer(connStr string, UserIndexName string) (*ServiceSearchServer, erro
 		return nil, err
 	}
 
+	// It is for only so no ordering startup issue happens but i dont think so it is really really needed or there something i dont understand
 	err = amqpChan.ExchangeDeclare("UserFanOut", "fanout", true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = amqpChan.QueueDeclare("UserService", true, false, false, false, nil)
+	_, err = amqpChan.QueueDeclare("UserElasticSearchService", true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
-	err = amqpChan.QueueBind("UserService", "User.*", "UserFanOut", false, nil)
+	err = amqpChan.QueueBind("UserElasticSearchService","User.*", "UserFanOut", false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +67,7 @@ func NewServer(connStr string, UserIndexName string) (*ServiceSearchServer, erro
 		return nil, err
 	}
 
-	defer res.Body.Close() // Actually i think it is fine to close here maybe may be not   TODO add this in close function remmeber
+	defer res.Body.Close() // Actually i think it is fine to close here maybe may be not
 	fmt.Println("Successfully connected to Elasticsearch!")
 
 	exists, err := esapi.IndicesExistsRequest{
@@ -123,7 +124,7 @@ func (s *ServiceSearchServer) userHandler(T any) pubsub.AckType {
 }
 
 func (s *ServiceSearchServer) Subsribe() error {
-	return pubsub.SubscribeJSON(s.amqpChan, "UserService", s.userHandler)
+	return pubsub.SubscribeJSON(s.amqpChan, "UserElasticSearchService", s.userHandler)
 }
 
 func (s *ServiceSearchServer) SearchUsers(ctx context.Context, req *pb.SearchUsersRequest) (*pb.SearchUsersResponse, error) {
