@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -49,18 +50,40 @@ func main() {
 	userpb.RegisterUserServiceServer(grpcServer, userServer)
 
 	// Register Follow Service
-	followServer := socialservice.NewServer(
+	followServer,err := socialservice.NewServer(
 		cfg.Mongo.Client,
+		userServerConnStr,
 		cfg.Mongo.FollowCollection,
 		cfg.Mongo.UserCollection,
 	)
+	
+	if err != nil{
+		fmt.Printf("%v",err)
+		return
+	}
+	
 	socialpb.RegisterFollowServiceServer(grpcServer, followServer)
 
 	// Register Post Service
-	postServer := postservice.NewServer(
+	redisOpts := &redis.Options{
+		Addr:         cfg.Redis.Addr,
+		DB:           cfg.Redis.DB,
+		PoolSize:     cfg.Redis.PoolSize,
+		MinIdleConns: cfg.Redis.MinIdleConns,
+		DialTimeout:  cfg.Redis.DialTimeout,
+		ReadTimeout:  cfg.Redis.ReadTimeout,
+		WriteTimeout: cfg.Redis.WriteTimeout,
+	}
+	postServer, err := postservice.NewServer(
 		cfg.Mongo.PostCollection,
 		cfg.Mongo.UserCollection,
+		userServerConnStr,
+		redisOpts,
 	)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
 	postpb.RegisterPostServiceServer(grpcServer, postServer)
 
 	// Register Search Service

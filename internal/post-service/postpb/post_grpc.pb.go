@@ -22,6 +22,7 @@ const (
 	PostService_CreatePost_FullMethodName = "/post.PostService/CreatePost"
 	PostService_DeletePost_FullMethodName = "/post.PostService/DeletePost"
 	PostService_GetPost_FullMethodName    = "/post.PostService/GetPost"
+	PostService_GetUserTimeline_FullMethodName = "/post.PostService/GetUserTimeline"
 	PostService_GetReplies_FullMethodName = "/post.PostService/GetReplies"
 	PostService_GetThread_FullMethodName  = "/post.PostService/GetThread"
 	PostService_LikePost_FullMethodName   = "/post.PostService/LikePost"
@@ -35,6 +36,7 @@ type PostServiceClient interface {
 	CreatePost(ctx context.Context, in *CreatePostRequest, opts ...grpc.CallOption) (*CreatePostResponse, error)
 	DeletePost(ctx context.Context, in *DeletePostRequest, opts ...grpc.CallOption) (*DeletePostResponse, error)
 	GetPost(ctx context.Context, in *GetPostRequest, opts ...grpc.CallOption) (*GetPostResponse, error)
+	GetUserTimeline(ctx context.Context, in *GetUserTimelineRequest, opts ...grpc.CallOption) (*GetUserTimelineResponse, error)
 	GetReplies(ctx context.Context, in *GetRepliesRequest, opts ...grpc.CallOption) (*GetRepliesResponse, error)
 	GetThread(ctx context.Context, in *GetThreadRequest, opts ...grpc.CallOption) (*GetThreadResponse, error)
 	LikePost(ctx context.Context, in *LikePostRequest, opts ...grpc.CallOption) (*LikePostResponse, error)
@@ -73,6 +75,16 @@ func (c *postServiceClient) GetPost(ctx context.Context, in *GetPostRequest, opt
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetPostResponse)
 	err := c.cc.Invoke(ctx, PostService_GetPost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *postServiceClient) GetUserTimeline(ctx context.Context, in *GetUserTimelineRequest, opts ...grpc.CallOption) (*GetUserTimelineResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserTimelineResponse)
+	err := c.cc.Invoke(ctx, PostService_GetUserTimeline_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +138,7 @@ type PostServiceServer interface {
 	CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error)
 	DeletePost(context.Context, *DeletePostRequest) (*DeletePostResponse, error)
 	GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error)
+	GetUserTimeline(context.Context, *GetUserTimelineRequest) (*GetUserTimelineResponse, error)
 	GetReplies(context.Context, *GetRepliesRequest) (*GetRepliesResponse, error)
 	GetThread(context.Context, *GetThreadRequest) (*GetThreadResponse, error)
 	LikePost(context.Context, *LikePostRequest) (*LikePostResponse, error)
@@ -148,6 +161,9 @@ func (UnimplementedPostServiceServer) DeletePost(context.Context, *DeletePostReq
 }
 func (UnimplementedPostServiceServer) GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPost not implemented")
+}
+func (UnimplementedPostServiceServer) GetUserTimeline(context.Context, *GetUserTimelineRequest) (*GetUserTimelineResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserTimeline not implemented")
 }
 func (UnimplementedPostServiceServer) GetReplies(context.Context, *GetRepliesRequest) (*GetRepliesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetReplies not implemented")
@@ -232,6 +248,24 @@ func _PostService_GetPost_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PostServiceServer).GetPost(ctx, req.(*GetPostRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PostService_GetUserTimeline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserTimelineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PostServiceServer).GetUserTimeline(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PostService_GetUserTimeline_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PostServiceServer).GetUserTimeline(ctx, req.(*GetUserTimelineRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -326,6 +360,10 @@ var PostService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPost",
 			Handler:    _PostService_GetPost_Handler,
+		},
+		{
+			MethodName: "GetUserTimeline",
+			Handler:    _PostService_GetUserTimeline_Handler,
 		},
 		{
 			MethodName: "GetReplies",

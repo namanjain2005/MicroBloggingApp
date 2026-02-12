@@ -163,6 +163,14 @@ func (s *ServiceUserServer) ModifyBio(ctx context.Context, req *pb.ModifyBioRequ
 	if err != nil {
 		return nil, err
 	}
+
+	userMsg := &userEventLog{
+		user: *user,
+		EventName: "BioModification",
+	}
+
+	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut, "User.Bio",userMsg )
+	
 	return &pb.User{
 		Id:            user.Id,
 		Name:          user.Name,
@@ -172,5 +180,4 @@ func (s *ServiceUserServer) ModifyBio(ctx context.Context, req *pb.ModifyBioRequ
 		CreatedAt:     timestamppb.New(user.CreatedAt),
 	}, nil
 }
-
 

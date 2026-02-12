@@ -39,13 +39,24 @@ echo [OK] Client built successfully
 cd ..\..
 echo.
 
+REM Build timeline consumer
+echo Building timeline consumer...
+cd cmd\timeline-consumer
+go build -o timeline-consumer.exe
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to build timeline consumer
+    exit /b 1
+)
+echo [OK] Timeline consumer built successfully
+cd ..\..
+echo.
+
 echo ===== Setup Complete =====
 echo.
 echo Next steps:
 echo.
-echo 1. Start the server in one terminal:
-echo    cd cmd\server
-echo    .\server.exe
+echo 1. Start server + timeline consumer:
+echo    .\run-all.bat
 echo.
 echo 2. Create a user in another terminal:
 echo    cd cmd\client

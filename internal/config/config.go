@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ type Config struct {
 	Mongo Mongo
 	GRPC  GRPC
 	App   App
+	Redis Redis
 }
 
 // MongoDB holds MongoDB configuration
@@ -45,10 +47,24 @@ type App struct {
 	LogLevel string
 }
 
+// Redis holds Redis configuration
+type Redis struct {
+	Addr            string
+	DB              int
+	PoolSize        int
+	MinIdleConns    int
+	DialTimeout     time.Duration
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	TimelineMaxSize int64
+	PostTTL         time.Duration
+}
+
 // Load loads configuration from environment variables and fails fast when required variables are missing
 func Load() *Config {
 	_ = godotenv.Load()
 	_ = godotenv.Load("internal/config/.env")
+	loadProjectEnv()
 
 	required := []string{
 		"MONGO_URI",
@@ -97,6 +113,7 @@ func Load() *Config {
 			Env:      vals["APP_ENV"],
 			LogLevel: vals["LOG_LEVEL"],
 		},
+		Redis: loadRedisConfig(),
 	}
 
 	cfg.initMongo(
@@ -106,6 +123,76 @@ func Load() *Config {
 	)
 
 	return cfg
+}
+
+func loadProjectEnv() {
+	root := findProjectRoot()
+	if root == "" {
+		return
+	}
+	_ = godotenv.Load(filepath.Join(root, ".env"))
+}
+
+func findProjectRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	dir := wd
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func loadRedisConfig() Redis {
+	addr := getEnvDefault("REDIS_ADDR", "localhost:6379")
+	db := getEnvIntDefault("REDIS_DB", 0)
+	poolSize := getEnvIntDefault("REDIS_POOL_SIZE", 50)
+	minIdle := getEnvIntDefault("REDIS_MIN_IDLE_CONNS", 10)
+	dialTimeout := time.Duration(getEnvIntDefault("REDIS_DIAL_TIMEOUT_SEC", 5)) * time.Second
+	readTimeout := time.Duration(getEnvIntDefault("REDIS_READ_TIMEOUT_SEC", 3)) * time.Second
+	writeTimeout := time.Duration(getEnvIntDefault("REDIS_WRITE_TIMEOUT_SEC", 3)) * time.Second
+	timelineMax := int64(getEnvIntDefault("REDIS_TIMELINE_MAX", 1000))
+	postTTLDays := getEnvIntDefault("REDIS_POST_TTL_DAYS", 7)
+
+	return Redis{
+		Addr:            addr,
+		DB:              db,
+		PoolSize:        poolSize,
+		MinIdleConns:    minIdle,
+		DialTimeout:     dialTimeout,
+		ReadTimeout:     readTimeout,
+		WriteTimeout:    writeTimeout,
+		TimelineMaxSize: timelineMax,
+		PostTTL:         time.Duration(postTTLDays) * 24 * time.Hour,
+	}
+}
+
+func getEnvDefault(key, def string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+	return val
+}
+
+func getEnvIntDefault(key string, def int) int {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+	parsed, err := strconv.Atoi(val)
+	if err != nil {
+		return def
+	}
+	return parsed
 }
 
 func (c *Config) initMongo(userCol, followCol, postCol string) {

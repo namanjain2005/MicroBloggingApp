@@ -12,8 +12,8 @@ service PostService {
   
   rpc GetPost(GetPostRequest) returns (GetPostResponse);
 
- // rpc GetUserTimeline(GetUserTimelineRequest)
-   //   returns (GetUserTimelineResponse);
+  rpc GetUserTimeline(GetUserTimelineRequest)
+      returns (GetUserTimelineResponse);
 
   rpc GetReplies(GetRepliesRequest)
       returns (GetRepliesResponse);

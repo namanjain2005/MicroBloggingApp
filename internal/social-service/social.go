@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type followers struct {
+type FollowDoc struct {
 	Id         string    `bson:"_id,omitempty"`
 	FollowerId string    `bson:"followerId"`
 	FolloweeId string    `bson:"followeeId"`
@@ -28,7 +28,7 @@ func FollowUserReq(
 	Client *mongo.Client,
 	followsCol *mongo.Collection,
 	req *pb.FollowUserRequest,
-) (*pb.FollowUserResponse, error) {
+) (*FollowDoc, error) {
 
 	if req.FolloweeId == "" || req.FollowerId == "" {
 		return nil, status.Error(codes.InvalidArgument, "FolloweeId and FollowerId cannot be empty")
@@ -47,13 +47,13 @@ func FollowUserReq(
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	if count != 2 {
-	return nil, status.Error(codes.NotFound, "one or both users do not exist")
+		return nil, status.Error(codes.NotFound, "one or both users do not exist")
 	}
 
-	followDoc := bson.M{
-		"followerId": req.FollowerId,
-		"followeeId": req.FolloweeId,
-		"createdAt":  time.Now(),
+	followDoc := &FollowDoc{
+		FollowerId: req.FollowerId,
+		FolloweeId: req.FolloweeId,
+		CreatedAt:  time.Now(),
 	}
 
 	session, err := Client.StartSession()
@@ -65,7 +65,7 @@ func FollowUserReq(
 	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (any, error) {
 
 		//i did not know you cannot start goroutines(conncurrency in general) safely inside transaction
-		_, err = followsCol.InsertOne(sc, followDoc)
+		res, err := followsCol.InsertOne(sc, followDoc)
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
 				return nil, status.Error(codes.AlreadyExists, "already following")
@@ -73,6 +73,10 @@ func FollowUserReq(
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
 
+		if oid,ok := res.InsertedID.(string);ok{
+			followDoc.Id = oid
+		}
+		
 		if _, err = UserCol.UpdateByID(
 			sc,
 			req.FolloweeId,
@@ -80,10 +84,7 @@ func FollowUserReq(
 		); err != nil {
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
-
-		return &pb.FollowUserResponse{
-			Success: true,
-		}, nil
+		return nil,nil
 	})
 
 	if err != nil {
@@ -93,7 +94,7 @@ func FollowUserReq(
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 
-	return &pb.FollowUserResponse{Success: true}, nil
+	return followDoc,nil
 }
 
 func UnfollowUserReq(
@@ -102,7 +103,7 @@ func UnfollowUserReq(
 	Client *mongo.Client,
 	followsCol *mongo.Collection,
 	req *pb.UnfollowUserRequest,
-) (*pb.UnfollowUserResponse, error) {
+) (*FollowDoc, error) {
 
 	if req.FolloweeId == "" || req.FollowerId == "" {
 		return nil, status.Error(codes.InvalidArgument, "FolloweeId and FollowerId cannot be empty")
@@ -113,23 +114,30 @@ func UnfollowUserReq(
 		"followeeId": req.FolloweeId,
 	}
 
+	var deleted FollowDoc
+
 	session, err := Client.StartSession()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "start session: %v", err)
 	}
 	defer session.EndSession(ctx)
-
+	
 	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (any, error) {
 
-		result, err := followsCol.DeleteOne(sc, followFilter)
+		// err := followsCol.DeleteOne(sc, followFilter)
+		err := followsCol.FindOneAndDelete(ctx, followFilter).Decode(&deleted)
+		if err == mongo.ErrNoDocuments{
+			return nil,nil
+		}
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "delete follow: %v", err)
 		}
 
-		if result.DeletedCount == 0 {
-			// If not found, it's not an error but the action has no effect.
-			return &pb.UnfollowUserResponse{Success: true}, nil
-		}
+		// i think this is done with deletedCount already
+		// if result.DeletedCount == 0 {
+		// 	// If not found, it's not an error but the action has no effect.
+		// 	return nil, nil
+		// }
 
 		if _, err = UserCol.UpdateByID(
 			sc,
@@ -139,7 +147,7 @@ func UnfollowUserReq(
 			return nil, status.Errorf(codes.Internal, "decrement follower count: %v", err)
 		}
 
-		return &pb.UnfollowUserResponse{Success: true}, nil
+		return nil, nil
 	})
 
 	if err != nil {
@@ -149,7 +157,7 @@ func UnfollowUserReq(
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 
-	return &pb.UnfollowUserResponse{Success: true}, nil
+	return &deleted, nil
 }
 
 // IsFollowingReq implements the IsFollowing RPC for a single check.
@@ -225,11 +233,11 @@ func GetFollowingReq(
 	var lastFollowID string
 
 	for cursor.Next(ctx) {
-		var followDoc followers
+		var followDoc FollowDoc
 		if err := cursor.Decode(&followDoc); err != nil {
 			return nil, status.Errorf(codes.Internal, "decode document: %v", err)
 		}
-		
+
 		following = append(following, &pb.FollowingEdge{
 			FolloweeId: followDoc.FolloweeId,
 			FollowedAt: timestamppb.New(followDoc.CreatedAt),
@@ -291,7 +299,7 @@ func GetFollowersReq(
 	var lastFollowID string
 
 	for cursor.Next(ctx) {
-		var followDoc followers
+		var followDoc FollowDoc
 		if err := cursor.Decode(&followDoc); err != nil {
 			return nil, status.Errorf(codes.Internal, "decode document: %v", err)
 		}

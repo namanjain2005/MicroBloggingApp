@@ -16,15 +16,15 @@ if ! command -v go &> /dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}✓ Go is installed$(go version)${NC}"
+echo -e "${GREEN}[OK] Go is installed: $(go version)${NC}"
 echo ""
 
 # Check if MongoDB is accessible
 echo "Checking MongoDB connection..."
 if timeout 2 bash -c "cat < /dev/null > /dev/tcp/localhost/27017" 2>/dev/null; then
-    echo -e "${GREEN}✓ MongoDB is accessible on localhost:27017${NC}"
+    echo -e "${GREEN}[OK] MongoDB is accessible on localhost:27017${NC}"
 else
-    echo -e "${YELLOW}⚠ MongoDB is not accessible on localhost:27017${NC}"
+    echo -e "${YELLOW}[WARN] MongoDB is not accessible on localhost:27017${NC}"
     echo "  Please ensure MongoDB is running or set MONGO_URI environment variable"
 fi
 echo ""
@@ -34,9 +34,9 @@ echo "Building server..."
 cd cmd/server
 go build -o server
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Server built successfully${NC}"
+    echo -e "${GREEN}[OK] Server built successfully${NC}"
 else
-    echo -e "${RED}✗ Failed to build server${NC}"
+    echo -e "${RED}[ERROR] Failed to build server${NC}"
     exit 1
 fi
 cd ../..
@@ -47,9 +47,22 @@ echo "Building client..."
 cd cmd/client
 go build -o client
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Client built successfully${NC}"
+    echo -e "${GREEN}[OK] Client built successfully${NC}"
 else
-    echo -e "${RED}✗ Failed to build client${NC}"
+    echo -e "${RED}[ERROR] Failed to build client${NC}"
+    exit 1
+fi
+cd ../..
+echo ""
+
+# Build timeline consumer
+echo "Building timeline consumer..."
+cd cmd/timeline-consumer
+go build -o timeline-consumer
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}[OK] Timeline consumer built successfully${NC}"
+else
+    echo -e "${RED}[ERROR] Failed to build timeline consumer${NC}"
     exit 1
 fi
 cd ../..
@@ -59,13 +72,10 @@ echo -e "${GREEN}=== Setup Complete ===${NC}"
 echo ""
 echo "Next steps:"
 echo ""
-echo "1. Start the server in one terminal:"
-echo "   cd cmd/server && ./server"
+echo "1. Start server + timeline consumer:"
+echo "   ./run-all.sh"
 echo ""
 echo "2. Create a user in another terminal:"
-echo "   cd cmd/client && ./client -cmd=create -name=\"Your Name\" -password=\"YourPassword\""
-echo ""
-echo "3. Retrieve the user:"
-echo "   cd cmd/client && ./client -cmd=get -id=\"<user-id>\""
+echo "   cd cmd/client && ./client"
 echo ""
 echo "For more information, see README.md"

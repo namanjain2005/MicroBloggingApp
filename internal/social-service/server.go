@@ -6,29 +6,65 @@ import (
 	//"errors"
 	//"fmt"
 	//socialservice "microBloggingAPP/internal/social-service
+	"microBloggingAPP/internal/pubsub"
 	pb "microBloggingAPP/internal/social-service/socialpb"
 
 	//userservice "microBloggingAPP/internal/user-service"
-
+	amqp "github.com/rabbitmq/amqp091-go"
 	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
+// TODO Need to decouple
 type FollowServiceServer struct {
 	pb.UnimplementedFollowServiceServer
 	Client    *mongo.Client
 	FollowCol *mongo.Collection
 	UserCol   *mongo.Collection
+	amqpConn  *amqp.Connection
+	amqpChan  *amqp.Channel
 }
 
-func NewServer(Client *mongo.Client, FollowCol *mongo.Collection, UserCol *mongo.Collection) *FollowServiceServer {
+type FollowServiceEventMsg struct{
+	follow FollowDoc
+}
+
+const (
+	ExchangeSocialFanOut = "SocialFanOut"
+)
+
+func NewServer(Client *mongo.Client,
+	connStr string,
+	FollowCol *mongo.Collection,
+	UserCol *mongo.Collection) (*FollowServiceServer,error) {
+
+	amqpConn, err := amqp.Dial(connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	amqpChan, err := amqpConn.Channel()
+	if err != nil {
+		amqpConn.Close()
+		return nil, err
+	}
+	
+	err = amqpChan.ExchangeDeclare(ExchangeSocialFanOut, "fanout", true, false, false, false, nil)
+	if err != nil {
+		amqpConn.Close()
+		return nil, err
+	}
+
 	return &FollowServiceServer{
 		Client:    Client,
 		FollowCol: FollowCol,
 		UserCol:   UserCol,
-	}
+		amqpConn: amqpConn,
+		amqpChan: amqpChan,
+	},nil
 }
+
 
 func (ser *FollowServiceServer) checkServer() error {
 
@@ -51,7 +87,17 @@ func (ser *FollowServiceServer) FollowUser(ctx context.Context, req *pb.FollowUs
 	if err != nil {
 		return nil, err // may want to do this before this func and assume it exist for it
 	}
-	return FollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
+	
+	doc,err := FollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
+
+	pubsub.PublishJSON(ctx, ser.amqpChan, ExchangeSocialFanOut, "social.follow", doc)
+
+	if err != nil{
+		return nil,err
+	}
+	return &pb.FollowUserResponse{
+		Success: true,		
+	},nil
 }
 
 func (ser *FollowServiceServer) UnfollowUser(ctx context.Context, req *pb.UnfollowUserRequest) (*pb.UnfollowUserResponse, error) {
@@ -59,10 +105,21 @@ func (ser *FollowServiceServer) UnfollowUser(ctx context.Context, req *pb.Unfoll
 	if err != nil {
 		return nil, err
 	}
-	return UnfollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
+	
+	doc,err := UnfollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
+
+	pubsub.PublishJSON(ctx, ser.amqpChan, ExchangeSocialFanOut, "social.unfollow", doc)
+
+	if err != nil{
+		return nil,err
+	}
+	return &pb.UnfollowUserResponse{
+		Success: true,		
+	},nil
 }
 
 func (ser *FollowServiceServer) GetFollowing(ctx context.Context, req *pb.GetFollowingRequest) (*pb.GetFollowingResponse, error) {
+	// TODO what to do of these events
 	err := ser.checkServer()
 	if err != nil {
 		return nil, err

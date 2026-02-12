@@ -30,7 +30,7 @@ func main() {
 	fmt.Println("Connected to", addr)
 	fmt.Println("Commands: follow, unfollow, followers, following, repeat")
 	fmt.Println("User Commands: create_user, get_user, get_user_by_email, modify_bio")
-	fmt.Println("Post Commands: create_post, get_post, delete_post, like_post, unlike_post, get_replies, get_thread")
+	fmt.Println("Post Commands: create_post, get_post, delete_post, like_post, unlike_post, get_replies, get_thread, get_timeline")
 	fmt.Println("Search Commands: search_user <query>")
 	fmt.Println("Other: exit")
 
@@ -396,6 +396,44 @@ func processCommand(app *client.App, cmd []string) error {
 			fmt.Printf("Thread (%d posts):\n", len(res.Posts))
 			for _, p := range res.Posts {
 				fmt.Printf("  - %s: %s\n", p.Id, p.Text)
+			}
+			return nil
+		})
+
+	case "get_timeline":
+		if len(cmd) < 2 {
+			return fmt.Errorf("usage: get_timeline <user_id> [cursor] [limit]")
+		}
+		cursor := ""
+		limit := int32(20)
+		if len(cmd) >= 3 {
+			cursor = cmd[2]
+		}
+		if len(cmd) >= 4 {
+			parsed, err := strconv.Atoi(cmd[3])
+			if err != nil {
+				return fmt.Errorf("invalid limit: %v", err)
+			}
+			limit = int32(parsed)
+		}
+
+		return runPost(app, func(c postpb.PostServiceClient) error {
+			ctx, cancel := client.Ctx()
+			defer cancel()
+			res, err := c.GetUserTimeline(ctx, &postpb.GetUserTimelineRequest{
+				UserId: cmd[1],
+				Cursor: cursor,
+				Limit:  limit,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Timeline (%d posts):\n", len(res.Posts))
+			for _, p := range res.Posts {
+				fmt.Printf("  - %s: %s (author %s)\n", p.Id, p.Text, p.AuthorId)
+			}
+			if res.NextCursor != "" {
+				fmt.Printf("NextCursor: %s\n", res.NextCursor)
 			}
 			return nil
 		})
