@@ -23,7 +23,7 @@ type TimeLineConsumerServer struct {
 	// Using this directly you might want to ask follow service to give me the list ??
 	ctx             context.Context
 	maxTimelineSize int64
-	postTTL         time.Duration
+	postTTL         time.Duration // why this ?? 
 }
 
 type UserMessage struct {
@@ -98,12 +98,12 @@ func NewServer(ctx context.Context, connStr string, redisOpts *redis.Options, fo
 	}, nil
 }
 
-func (s *TimeLineConsumerServer) userHandler(userMsg UserMessage) pubsub.AckType {
-	// score := float64(userMsg.CreatedAt.Unix())
-	// follwers :=
+// func (s *TimeLineConsumerServer) userHandler(userMsg UserMessage) pubsub.AckType {
+// 	// score := float64(userMsg.CreatedAt.Unix())
+// 	// follwers :=
 
-	return pubsub.Ack
-}
+// 	return pubsub.Ack
+// }
 
 func (s *TimeLineConsumerServer) Subscribe() error {
 	return pubsub.SubscribeJSON(s.amqpChan, "SocialTimeLineService", s.postCreatedHandler)
@@ -150,6 +150,7 @@ func (s *TimeLineConsumerServer) postCreatedHandler(event events.PostCreatedEven
 	followerIDs = append(followerIDs, event.AuthorID)
 
 	for _, followerID := range followerIDs {
+		// can be very heavy if too many users are there so covert that to be just Fanout read 
 		tKey := timelineKey(followerID)
 		pipe.ZAdd(s.ctx, tKey, redis.Z{Score: score, Member: event.PostID})
 		if s.maxTimelineSize > 0 {
