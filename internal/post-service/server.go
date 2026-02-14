@@ -15,14 +15,16 @@ import (
 
 type PostServiceServer struct {
 	pb.UnimplementedPostServiceServer
-	postCol     *mongo.Collection
-	userCol     *mongo.Collection
-	amqpConn    *amqp.Connection
-	amqpChan    *amqp.Channel
-	redisClient *redis.Client
+	postCol                 *mongo.Collection
+	userCol                 *mongo.Collection
+	followCol               *mongo.Collection // For querying following relationships
+	amqpConn                *amqp.Connection
+	amqpChan                *amqp.Channel
+	redisClient             *redis.Client
+	bigPersonalityThreshold uint64 // Follower count threshold for fanout-read
 }
 
-func NewServer(postCol *mongo.Collection, userCol *mongo.Collection, connStr string, redisOpts *redis.Options) (*PostServiceServer, error) {
+func NewServer(postCol *mongo.Collection, userCol *mongo.Collection, followCol *mongo.Collection, connStr string, redisOpts *redis.Options, bigPersonalityThreshold uint64) (*PostServiceServer, error) {
 	amqpConn, err := amqp.Dial(connStr)
 	if err != nil {
 		return nil, err
@@ -45,11 +47,13 @@ func NewServer(postCol *mongo.Collection, userCol *mongo.Collection, connStr str
 	}
 
 	return &PostServiceServer{
-		postCol:     postCol,
-		userCol:     userCol,
-		amqpConn:    amqpConn,
-		amqpChan:    amqpChan,
-		redisClient: redisClient,
+		postCol:                 postCol,
+		userCol:                 userCol,
+		followCol:               followCol,
+		amqpConn:                amqpConn,
+		amqpChan:                amqpChan,
+		redisClient:             redisClient,
+		bigPersonalityThreshold: bigPersonalityThreshold,
 	}, nil
 }
 
@@ -139,8 +143,8 @@ func (s *PostServiceServer) UnlikePost(ctx context.Context, req *pb.UnlikePostRe
 	return UnlikePostReq(ctx, s.postCol, req)
 }
 
-func (s *PostServiceServer) GetUserTimeline(ctx context.Context, req *pb.GetUserTimelineRequest) (*pb.GetUserTimelineResponse, error) {
-	return GetUserTimelineReq(ctx, s.redisClient, req)
+func (s *PostServiceServer) GetUserTimeline(req *pb.GetUserTimelineRequest, stream pb.PostService_GetUserTimelineServer) error {
+	return GetUserTimelineStream(stream.Context(), s.redisClient, s.followCol, s.userCol, s.postCol, req, stream, s.bigPersonalityThreshold)
 }
 
 func (s *PostServiceServer) publishPostCreated(ctx context.Context, post *pb.Post) {

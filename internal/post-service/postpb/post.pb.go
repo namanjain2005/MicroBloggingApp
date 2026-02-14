@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.2
-// source: post.proto
+// source: internal/post-service/post.proto
 
 package postpb
 
@@ -42,7 +42,7 @@ type Post struct {
 
 func (x *Post) Reset() {
 	*x = Post{}
-	mi := &file_post_proto_msgTypes[0]
+	mi := &file_internal_post_service_post_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -54,7 +54,7 @@ func (x *Post) String() string {
 func (*Post) ProtoMessage() {}
 
 func (x *Post) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[0]
+	mi := &file_internal_post_service_post_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -67,7 +67,7 @@ func (x *Post) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Post.ProtoReflect.Descriptor instead.
 func (*Post) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{0}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Post) GetId() string {
@@ -165,7 +165,7 @@ type CreatePostRequest struct {
 
 func (x *CreatePostRequest) Reset() {
 	*x = CreatePostRequest{}
-	mi := &file_post_proto_msgTypes[1]
+	mi := &file_internal_post_service_post_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -177,7 +177,7 @@ func (x *CreatePostRequest) String() string {
 func (*CreatePostRequest) ProtoMessage() {}
 
 func (x *CreatePostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[1]
+	mi := &file_internal_post_service_post_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -190,7 +190,7 @@ func (x *CreatePostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePostRequest.ProtoReflect.Descriptor instead.
 func (*CreatePostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{1}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreatePostRequest) GetAuthorId() string {
@@ -223,7 +223,7 @@ type CreatePostResponse struct {
 
 func (x *CreatePostResponse) Reset() {
 	*x = CreatePostResponse{}
-	mi := &file_post_proto_msgTypes[2]
+	mi := &file_internal_post_service_post_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +235,7 @@ func (x *CreatePostResponse) String() string {
 func (*CreatePostResponse) ProtoMessage() {}
 
 func (x *CreatePostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[2]
+	mi := &file_internal_post_service_post_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +248,7 @@ func (x *CreatePostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePostResponse.ProtoReflect.Descriptor instead.
 func (*CreatePostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{2}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreatePostResponse) GetPost() *Post {
@@ -268,7 +268,7 @@ type DeletePostRequest struct {
 
 func (x *DeletePostRequest) Reset() {
 	*x = DeletePostRequest{}
-	mi := &file_post_proto_msgTypes[3]
+	mi := &file_internal_post_service_post_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -280,7 +280,7 @@ func (x *DeletePostRequest) String() string {
 func (*DeletePostRequest) ProtoMessage() {}
 
 func (x *DeletePostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[3]
+	mi := &file_internal_post_service_post_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -293,7 +293,7 @@ func (x *DeletePostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePostRequest.ProtoReflect.Descriptor instead.
 func (*DeletePostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{3}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DeletePostRequest) GetPostId() string {
@@ -319,7 +319,7 @@ type DeletePostResponse struct {
 
 func (x *DeletePostResponse) Reset() {
 	*x = DeletePostResponse{}
-	mi := &file_post_proto_msgTypes[4]
+	mi := &file_internal_post_service_post_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +331,7 @@ func (x *DeletePostResponse) String() string {
 func (*DeletePostResponse) ProtoMessage() {}
 
 func (x *DeletePostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[4]
+	mi := &file_internal_post_service_post_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -344,7 +344,7 @@ func (x *DeletePostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePostResponse.ProtoReflect.Descriptor instead.
 func (*DeletePostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{4}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DeletePostResponse) GetSuccess() bool {
@@ -363,7 +363,7 @@ type GetPostRequest struct {
 
 func (x *GetPostRequest) Reset() {
 	*x = GetPostRequest{}
-	mi := &file_post_proto_msgTypes[5]
+	mi := &file_internal_post_service_post_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -375,7 +375,7 @@ func (x *GetPostRequest) String() string {
 func (*GetPostRequest) ProtoMessage() {}
 
 func (x *GetPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[5]
+	mi := &file_internal_post_service_post_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -388,7 +388,7 @@ func (x *GetPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostRequest.ProtoReflect.Descriptor instead.
 func (*GetPostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{5}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetPostRequest) GetPostId() string {
@@ -407,7 +407,7 @@ type GetPostResponse struct {
 
 func (x *GetPostResponse) Reset() {
 	*x = GetPostResponse{}
-	mi := &file_post_proto_msgTypes[6]
+	mi := &file_internal_post_service_post_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +419,7 @@ func (x *GetPostResponse) String() string {
 func (*GetPostResponse) ProtoMessage() {}
 
 func (x *GetPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[6]
+	mi := &file_internal_post_service_post_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +432,7 @@ func (x *GetPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostResponse.ProtoReflect.Descriptor instead.
 func (*GetPostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{6}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetPostResponse) GetPost() *Post {
@@ -453,7 +453,7 @@ type GetUserTimelineRequest struct {
 
 func (x *GetUserTimelineRequest) Reset() {
 	*x = GetUserTimelineRequest{}
-	mi := &file_post_proto_msgTypes[7]
+	mi := &file_internal_post_service_post_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +465,7 @@ func (x *GetUserTimelineRequest) String() string {
 func (*GetUserTimelineRequest) ProtoMessage() {}
 
 func (x *GetUserTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[7]
+	mi := &file_internal_post_service_post_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +478,7 @@ func (x *GetUserTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetUserTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{7}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetUserTimelineRequest) GetUserId() string {
@@ -512,7 +512,7 @@ type GetUserTimelineResponse struct {
 
 func (x *GetUserTimelineResponse) Reset() {
 	*x = GetUserTimelineResponse{}
-	mi := &file_post_proto_msgTypes[8]
+	mi := &file_internal_post_service_post_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +524,7 @@ func (x *GetUserTimelineResponse) String() string {
 func (*GetUserTimelineResponse) ProtoMessage() {}
 
 func (x *GetUserTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[8]
+	mi := &file_internal_post_service_post_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +537,7 @@ func (x *GetUserTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetUserTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{8}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetUserTimelineResponse) GetPosts() []*Post {
@@ -548,6 +548,74 @@ func (x *GetUserTimelineResponse) GetPosts() []*Post {
 }
 
 func (x *GetUserTimelineResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+type TimelineChunk struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Posts         []*Post                `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"`
+	Source        string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`                           // "redis" or "mongodb"
+	IsFinal       bool                   `protobuf:"varint,3,opt,name=is_final,json=isFinal,proto3" json:"is_final,omitempty"`         // true for last chunk
+	NextCursor    string                 `protobuf:"bytes,4,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"` // pagination cursor for next fetch
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimelineChunk) Reset() {
+	*x = TimelineChunk{}
+	mi := &file_internal_post_service_post_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimelineChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimelineChunk) ProtoMessage() {}
+
+func (x *TimelineChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_post_service_post_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimelineChunk.ProtoReflect.Descriptor instead.
+func (*TimelineChunk) Descriptor() ([]byte, []int) {
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TimelineChunk) GetPosts() []*Post {
+	if x != nil {
+		return x.Posts
+	}
+	return nil
+}
+
+func (x *TimelineChunk) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *TimelineChunk) GetIsFinal() bool {
+	if x != nil {
+		return x.IsFinal
+	}
+	return false
+}
+
+func (x *TimelineChunk) GetNextCursor() string {
 	if x != nil {
 		return x.NextCursor
 	}
@@ -565,7 +633,7 @@ type GetRepliesRequest struct {
 
 func (x *GetRepliesRequest) Reset() {
 	*x = GetRepliesRequest{}
-	mi := &file_post_proto_msgTypes[9]
+	mi := &file_internal_post_service_post_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -577,7 +645,7 @@ func (x *GetRepliesRequest) String() string {
 func (*GetRepliesRequest) ProtoMessage() {}
 
 func (x *GetRepliesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[9]
+	mi := &file_internal_post_service_post_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +658,7 @@ func (x *GetRepliesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRepliesRequest.ProtoReflect.Descriptor instead.
 func (*GetRepliesRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{9}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetRepliesRequest) GetPostId() string {
@@ -624,7 +692,7 @@ type GetRepliesResponse struct {
 
 func (x *GetRepliesResponse) Reset() {
 	*x = GetRepliesResponse{}
-	mi := &file_post_proto_msgTypes[10]
+	mi := &file_internal_post_service_post_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -636,7 +704,7 @@ func (x *GetRepliesResponse) String() string {
 func (*GetRepliesResponse) ProtoMessage() {}
 
 func (x *GetRepliesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[10]
+	mi := &file_internal_post_service_post_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -649,7 +717,7 @@ func (x *GetRepliesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRepliesResponse.ProtoReflect.Descriptor instead.
 func (*GetRepliesResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{10}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetRepliesResponse) GetReplies() []*Post {
@@ -675,7 +743,7 @@ type GetThreadRequest struct {
 
 func (x *GetThreadRequest) Reset() {
 	*x = GetThreadRequest{}
-	mi := &file_post_proto_msgTypes[11]
+	mi := &file_internal_post_service_post_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -687,7 +755,7 @@ func (x *GetThreadRequest) String() string {
 func (*GetThreadRequest) ProtoMessage() {}
 
 func (x *GetThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[11]
+	mi := &file_internal_post_service_post_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -700,7 +768,7 @@ func (x *GetThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadRequest.ProtoReflect.Descriptor instead.
 func (*GetThreadRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{11}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetThreadRequest) GetRootPostId() string {
@@ -719,7 +787,7 @@ type GetThreadResponse struct {
 
 func (x *GetThreadResponse) Reset() {
 	*x = GetThreadResponse{}
-	mi := &file_post_proto_msgTypes[12]
+	mi := &file_internal_post_service_post_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -731,7 +799,7 @@ func (x *GetThreadResponse) String() string {
 func (*GetThreadResponse) ProtoMessage() {}
 
 func (x *GetThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[12]
+	mi := &file_internal_post_service_post_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -744,7 +812,7 @@ func (x *GetThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadResponse.ProtoReflect.Descriptor instead.
 func (*GetThreadResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{12}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetThreadResponse) GetPosts() []*Post {
@@ -764,7 +832,7 @@ type LikePostRequest struct {
 
 func (x *LikePostRequest) Reset() {
 	*x = LikePostRequest{}
-	mi := &file_post_proto_msgTypes[13]
+	mi := &file_internal_post_service_post_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -776,7 +844,7 @@ func (x *LikePostRequest) String() string {
 func (*LikePostRequest) ProtoMessage() {}
 
 func (x *LikePostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[13]
+	mi := &file_internal_post_service_post_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -789,7 +857,7 @@ func (x *LikePostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LikePostRequest.ProtoReflect.Descriptor instead.
 func (*LikePostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{13}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *LikePostRequest) GetPostId() string {
@@ -815,7 +883,7 @@ type LikePostResponse struct {
 
 func (x *LikePostResponse) Reset() {
 	*x = LikePostResponse{}
-	mi := &file_post_proto_msgTypes[14]
+	mi := &file_internal_post_service_post_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -827,7 +895,7 @@ func (x *LikePostResponse) String() string {
 func (*LikePostResponse) ProtoMessage() {}
 
 func (x *LikePostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[14]
+	mi := &file_internal_post_service_post_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -840,7 +908,7 @@ func (x *LikePostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LikePostResponse.ProtoReflect.Descriptor instead.
 func (*LikePostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{14}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *LikePostResponse) GetSuccess() bool {
@@ -860,7 +928,7 @@ type UnlikePostRequest struct {
 
 func (x *UnlikePostRequest) Reset() {
 	*x = UnlikePostRequest{}
-	mi := &file_post_proto_msgTypes[15]
+	mi := &file_internal_post_service_post_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -872,7 +940,7 @@ func (x *UnlikePostRequest) String() string {
 func (*UnlikePostRequest) ProtoMessage() {}
 
 func (x *UnlikePostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[15]
+	mi := &file_internal_post_service_post_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -885,7 +953,7 @@ func (x *UnlikePostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlikePostRequest.ProtoReflect.Descriptor instead.
 func (*UnlikePostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{15}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UnlikePostRequest) GetPostId() string {
@@ -911,7 +979,7 @@ type UnlikePostResponse struct {
 
 func (x *UnlikePostResponse) Reset() {
 	*x = UnlikePostResponse{}
-	mi := &file_post_proto_msgTypes[16]
+	mi := &file_internal_post_service_post_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -923,7 +991,7 @@ func (x *UnlikePostResponse) String() string {
 func (*UnlikePostResponse) ProtoMessage() {}
 
 func (x *UnlikePostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[16]
+	mi := &file_internal_post_service_post_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -936,7 +1004,7 @@ func (x *UnlikePostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlikePostResponse.ProtoReflect.Descriptor instead.
 func (*UnlikePostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{16}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UnlikePostResponse) GetSuccess() bool {
@@ -956,7 +1024,7 @@ type ViewPostRequest struct {
 
 func (x *ViewPostRequest) Reset() {
 	*x = ViewPostRequest{}
-	mi := &file_post_proto_msgTypes[17]
+	mi := &file_internal_post_service_post_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -968,7 +1036,7 @@ func (x *ViewPostRequest) String() string {
 func (*ViewPostRequest) ProtoMessage() {}
 
 func (x *ViewPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[17]
+	mi := &file_internal_post_service_post_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -981,7 +1049,7 @@ func (x *ViewPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ViewPostRequest.ProtoReflect.Descriptor instead.
 func (*ViewPostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{17}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ViewPostRequest) GetPostId() string {
@@ -1007,7 +1075,7 @@ type ViewPostResponse struct {
 
 func (x *ViewPostResponse) Reset() {
 	*x = ViewPostResponse{}
-	mi := &file_post_proto_msgTypes[18]
+	mi := &file_internal_post_service_post_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1019,7 +1087,7 @@ func (x *ViewPostResponse) String() string {
 func (*ViewPostResponse) ProtoMessage() {}
 
 func (x *ViewPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[18]
+	mi := &file_internal_post_service_post_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1032,7 +1100,7 @@ func (x *ViewPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ViewPostResponse.ProtoReflect.Descriptor instead.
 func (*ViewPostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{18}
+	return file_internal_post_service_post_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ViewPostResponse) GetSuccess() bool {
@@ -1042,12 +1110,11 @@ func (x *ViewPostResponse) GetSuccess() bool {
 	return false
 }
 
-var File_post_proto protoreflect.FileDescriptor
+var File_internal_post_service_post_proto protoreflect.FileDescriptor
 
-const file_post_proto_rawDesc = "" +
+const file_internal_post_service_post_proto_rawDesc = "" +
 	"\n" +
-	"\n" +
-	"post.proto\x12\x04post\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa6\x03\n" +
+	" internal/post-service/post.proto\x12\x04post\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa6\x03\n" +
 	"\x04Post\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x12\n" +
@@ -1094,6 +1161,13 @@ const file_post_proto_rawDesc = "" +
 	"\x05posts\x18\x01 \x03(\v2\n" +
 	".post.PostR\x05posts\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"\x85\x01\n" +
+	"\rTimelineChunk\x12 \n" +
+	"\x05posts\x18\x01 \x03(\v2\n" +
+	".post.PostR\x05posts\x12\x16\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\x12\x19\n" +
+	"\bis_final\x18\x03 \x01(\bR\aisFinal\x12\x1f\n" +
+	"\vnext_cursor\x18\x04 \x01(\tR\n" +
 	"nextCursor\"Z\n" +
 	"\x11GetRepliesRequest\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\tR\x06postId\x12\x16\n" +
@@ -1124,13 +1198,14 @@ const file_post_proto_rawDesc = "" +
 	"\apost_id\x18\x01 \x01(\tR\x06postId\x12\x1b\n" +
 	"\tviewer_id\x18\x02 \x01(\tR\bviewerId\",\n" +
 	"\x10ViewPostResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\xc2\x03\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\x8a\x04\n" +
 	"\vPostService\x12?\n" +
 	"\n" +
 	"CreatePost\x12\x17.post.CreatePostRequest\x1a\x18.post.CreatePostResponse\x12?\n" +
 	"\n" +
 	"DeletePost\x12\x17.post.DeletePostRequest\x1a\x18.post.DeletePostResponse\x126\n" +
-	"\aGetPost\x12\x14.post.GetPostRequest\x1a\x15.post.GetPostResponse\x12?\n" +
+	"\aGetPost\x12\x14.post.GetPostRequest\x1a\x15.post.GetPostResponse\x12F\n" +
+	"\x0fGetUserTimeline\x12\x1c.post.GetUserTimelineRequest\x1a\x13.post.TimelineChunk0\x01\x12?\n" +
 	"\n" +
 	"GetReplies\x12\x17.post.GetRepliesRequest\x1a\x18.post.GetRepliesResponse\x12<\n" +
 	"\tGetThread\x12\x16.post.GetThreadRequest\x1a\x17.post.GetThreadResponse\x129\n" +
@@ -1139,19 +1214,19 @@ const file_post_proto_rawDesc = "" +
 	"UnlikePost\x12\x17.post.UnlikePostRequest\x1a\x18.post.UnlikePostResponseB\tZ\apostpb/b\x06proto3"
 
 var (
-	file_post_proto_rawDescOnce sync.Once
-	file_post_proto_rawDescData []byte
+	file_internal_post_service_post_proto_rawDescOnce sync.Once
+	file_internal_post_service_post_proto_rawDescData []byte
 )
 
-func file_post_proto_rawDescGZIP() []byte {
-	file_post_proto_rawDescOnce.Do(func() {
-		file_post_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_post_proto_rawDesc), len(file_post_proto_rawDesc)))
+func file_internal_post_service_post_proto_rawDescGZIP() []byte {
+	file_internal_post_service_post_proto_rawDescOnce.Do(func() {
+		file_internal_post_service_post_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_internal_post_service_post_proto_rawDesc), len(file_internal_post_service_post_proto_rawDesc)))
 	})
-	return file_post_proto_rawDescData
+	return file_internal_post_service_post_proto_rawDescData
 }
 
-var file_post_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
-var file_post_proto_goTypes = []any{
+var file_internal_post_service_post_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_internal_post_service_post_proto_goTypes = []any{
 	(*Post)(nil),                    // 0: post.Post
 	(*CreatePostRequest)(nil),       // 1: post.CreatePostRequest
 	(*CreatePostResponse)(nil),      // 2: post.CreatePostResponse
@@ -1161,67 +1236,71 @@ var file_post_proto_goTypes = []any{
 	(*GetPostResponse)(nil),         // 6: post.GetPostResponse
 	(*GetUserTimelineRequest)(nil),  // 7: post.GetUserTimelineRequest
 	(*GetUserTimelineResponse)(nil), // 8: post.GetUserTimelineResponse
-	(*GetRepliesRequest)(nil),       // 9: post.GetRepliesRequest
-	(*GetRepliesResponse)(nil),      // 10: post.GetRepliesResponse
-	(*GetThreadRequest)(nil),        // 11: post.GetThreadRequest
-	(*GetThreadResponse)(nil),       // 12: post.GetThreadResponse
-	(*LikePostRequest)(nil),         // 13: post.LikePostRequest
-	(*LikePostResponse)(nil),        // 14: post.LikePostResponse
-	(*UnlikePostRequest)(nil),       // 15: post.UnlikePostRequest
-	(*UnlikePostResponse)(nil),      // 16: post.UnlikePostResponse
-	(*ViewPostRequest)(nil),         // 17: post.ViewPostRequest
-	(*ViewPostResponse)(nil),        // 18: post.ViewPostResponse
-	(*timestamppb.Timestamp)(nil),   // 19: google.protobuf.Timestamp
+	(*TimelineChunk)(nil),           // 9: post.TimelineChunk
+	(*GetRepliesRequest)(nil),       // 10: post.GetRepliesRequest
+	(*GetRepliesResponse)(nil),      // 11: post.GetRepliesResponse
+	(*GetThreadRequest)(nil),        // 12: post.GetThreadRequest
+	(*GetThreadResponse)(nil),       // 13: post.GetThreadResponse
+	(*LikePostRequest)(nil),         // 14: post.LikePostRequest
+	(*LikePostResponse)(nil),        // 15: post.LikePostResponse
+	(*UnlikePostRequest)(nil),       // 16: post.UnlikePostRequest
+	(*UnlikePostResponse)(nil),      // 17: post.UnlikePostResponse
+	(*ViewPostRequest)(nil),         // 18: post.ViewPostRequest
+	(*ViewPostResponse)(nil),        // 19: post.ViewPostResponse
+	(*timestamppb.Timestamp)(nil),   // 20: google.protobuf.Timestamp
 }
-var file_post_proto_depIdxs = []int32{
-	19, // 0: post.Post.created_at:type_name -> google.protobuf.Timestamp
-	19, // 1: post.Post.updated_at:type_name -> google.protobuf.Timestamp
+var file_internal_post_service_post_proto_depIdxs = []int32{
+	20, // 0: post.Post.created_at:type_name -> google.protobuf.Timestamp
+	20, // 1: post.Post.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: post.CreatePostResponse.post:type_name -> post.Post
 	0,  // 3: post.GetPostResponse.post:type_name -> post.Post
 	0,  // 4: post.GetUserTimelineResponse.posts:type_name -> post.Post
-	0,  // 5: post.GetRepliesResponse.replies:type_name -> post.Post
-	0,  // 6: post.GetThreadResponse.posts:type_name -> post.Post
-	1,  // 7: post.PostService.CreatePost:input_type -> post.CreatePostRequest
-	3,  // 8: post.PostService.DeletePost:input_type -> post.DeletePostRequest
-	5,  // 9: post.PostService.GetPost:input_type -> post.GetPostRequest
-	9,  // 10: post.PostService.GetReplies:input_type -> post.GetRepliesRequest
-	11, // 11: post.PostService.GetThread:input_type -> post.GetThreadRequest
-	13, // 12: post.PostService.LikePost:input_type -> post.LikePostRequest
-	15, // 13: post.PostService.UnlikePost:input_type -> post.UnlikePostRequest
-	2,  // 14: post.PostService.CreatePost:output_type -> post.CreatePostResponse
-	4,  // 15: post.PostService.DeletePost:output_type -> post.DeletePostResponse
-	6,  // 16: post.PostService.GetPost:output_type -> post.GetPostResponse
-	10, // 17: post.PostService.GetReplies:output_type -> post.GetRepliesResponse
-	12, // 18: post.PostService.GetThread:output_type -> post.GetThreadResponse
-	14, // 19: post.PostService.LikePost:output_type -> post.LikePostResponse
-	16, // 20: post.PostService.UnlikePost:output_type -> post.UnlikePostResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	0,  // 5: post.TimelineChunk.posts:type_name -> post.Post
+	0,  // 6: post.GetRepliesResponse.replies:type_name -> post.Post
+	0,  // 7: post.GetThreadResponse.posts:type_name -> post.Post
+	1,  // 8: post.PostService.CreatePost:input_type -> post.CreatePostRequest
+	3,  // 9: post.PostService.DeletePost:input_type -> post.DeletePostRequest
+	5,  // 10: post.PostService.GetPost:input_type -> post.GetPostRequest
+	7,  // 11: post.PostService.GetUserTimeline:input_type -> post.GetUserTimelineRequest
+	10, // 12: post.PostService.GetReplies:input_type -> post.GetRepliesRequest
+	12, // 13: post.PostService.GetThread:input_type -> post.GetThreadRequest
+	14, // 14: post.PostService.LikePost:input_type -> post.LikePostRequest
+	16, // 15: post.PostService.UnlikePost:input_type -> post.UnlikePostRequest
+	2,  // 16: post.PostService.CreatePost:output_type -> post.CreatePostResponse
+	4,  // 17: post.PostService.DeletePost:output_type -> post.DeletePostResponse
+	6,  // 18: post.PostService.GetPost:output_type -> post.GetPostResponse
+	9,  // 19: post.PostService.GetUserTimeline:output_type -> post.TimelineChunk
+	11, // 20: post.PostService.GetReplies:output_type -> post.GetRepliesResponse
+	13, // 21: post.PostService.GetThread:output_type -> post.GetThreadResponse
+	15, // 22: post.PostService.LikePost:output_type -> post.LikePostResponse
+	17, // 23: post.PostService.UnlikePost:output_type -> post.UnlikePostResponse
+	16, // [16:24] is the sub-list for method output_type
+	8,  // [8:16] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
-func init() { file_post_proto_init() }
-func file_post_proto_init() {
-	if File_post_proto != nil {
+func init() { file_internal_post_service_post_proto_init() }
+func file_internal_post_service_post_proto_init() {
+	if File_internal_post_service_post_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_post_proto_rawDesc), len(file_post_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_post_service_post_proto_rawDesc), len(file_internal_post_service_post_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_post_proto_goTypes,
-		DependencyIndexes: file_post_proto_depIdxs,
-		MessageInfos:      file_post_proto_msgTypes,
+		GoTypes:           file_internal_post_service_post_proto_goTypes,
+		DependencyIndexes: file_internal_post_service_post_proto_depIdxs,
+		MessageInfos:      file_internal_post_service_post_proto_msgTypes,
 	}.Build()
-	File_post_proto = out.File
-	file_post_proto_goTypes = nil
-	file_post_proto_depIdxs = nil
+	File_internal_post_service_post_proto = out.File
+	file_internal_post_service_post_proto_goTypes = nil
+	file_internal_post_service_post_proto_depIdxs = nil
 }

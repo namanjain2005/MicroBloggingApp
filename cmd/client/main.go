@@ -420,7 +420,8 @@ func processCommand(app *client.App, cmd []string) error {
 		return runPost(app, func(c postpb.PostServiceClient) error {
 			ctx, cancel := client.Ctx()
 			defer cancel()
-			res, err := c.GetUserTimeline(ctx, &postpb.GetUserTimelineRequest{
+
+			stream, err := c.GetUserTimeline(ctx, &postpb.GetUserTimelineRequest{
 				UserId: cmd[1],
 				Cursor: cursor,
 				Limit:  limit,
@@ -428,12 +429,40 @@ func processCommand(app *client.App, cmd []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Timeline (%d posts):\n", len(res.Posts))
-			for _, p := range res.Posts {
+
+			var allPosts []*postpb.Post
+			var nextCursor string
+			chunkCount := 0
+
+			fmt.Println("Receiving timeline...")
+			for {
+				chunk, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return err
+				}
+
+				chunkCount++
+				allPosts = append(allPosts, chunk.Posts...)
+				nextCursor = chunk.NextCursor
+
+				// Display progress
+				fmt.Printf("  [Chunk %d from %s: %d posts", chunkCount, chunk.Source, len(chunk.Posts))
+				if chunk.IsFinal {
+					fmt.Print(" - FINAL]\n")
+				} else {
+					fmt.Print("]\n")
+				}
+			}
+
+			fmt.Printf("\nTimeline (%d total posts from %d chunks):\n", len(allPosts), chunkCount)
+			for _, p := range allPosts {
 				fmt.Printf("  - %s: %s (author %s)\n", p.Id, p.Text, p.AuthorId)
 			}
-			if res.NextCursor != "" {
-				fmt.Printf("NextCursor: %s\n", res.NextCursor)
+			if nextCursor != "" {
+				fmt.Printf("NextCursor: %s\n", nextCursor)
 			}
 			return nil
 		})

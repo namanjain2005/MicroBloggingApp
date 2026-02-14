@@ -42,26 +42,26 @@ func main() {
 
 	// Register User Service
 	userServerConnStr := "amqp://guest:guest@localhost:5672/"
-	userServer,err := userservice.NewServer(cfg.Mongo.UserCollection,userServerConnStr)
-	if err != nil{
-		fmt.Printf("%v",err)
+	userServer, err := userservice.NewServer(cfg.Mongo.UserCollection, userServerConnStr)
+	if err != nil {
+		fmt.Printf("%v", err)
 		return
 	}
 	userpb.RegisterUserServiceServer(grpcServer, userServer)
 
 	// Register Follow Service
-	followServer,err := socialservice.NewServer(
+	followServer, err := socialservice.NewServer(
 		cfg.Mongo.Client,
 		userServerConnStr,
 		cfg.Mongo.FollowCollection,
 		cfg.Mongo.UserCollection,
 	)
-	
-	if err != nil{
-		fmt.Printf("%v",err)
+
+	if err != nil {
+		fmt.Printf("%v", err)
 		return
 	}
-	
+
 	socialpb.RegisterFollowServiceServer(grpcServer, followServer)
 
 	// Register Post Service
@@ -77,8 +77,10 @@ func main() {
 	postServer, err := postservice.NewServer(
 		cfg.Mongo.PostCollection,
 		cfg.Mongo.UserCollection,
+		cfg.Mongo.FollowCollection,
 		userServerConnStr,
 		redisOpts,
+		cfg.Timeline.BigPersonalityThreshold,
 	)
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -100,13 +102,12 @@ func main() {
 	//}
 	//searchpb.RegisterSearchServiceServer(grpcServer, searchServer)
 
-	conn,err:=grpc.NewClient("localhost:50053",grpc.WithTransportCredentials(insecure.NewCredentials()),)
-	if err !=nil{
-		log.Fatalf("failed to connect to search server %v",err)
+	conn, err := grpc.NewClient("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to search server %v", err)
 	}
 	defer conn.Close()
-	
-	
+
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
 		log.Fatalf("failed to listen on %s: %v", cfg.GRPC.Address(), err)
@@ -115,20 +116,20 @@ func main() {
 
 	client := searchpb.NewSearchServiceClient(conn)
 
-	http.HandleFunc("/searchUser", func(w http.ResponseWriter, req *http.Request){
+	http.HandleFunc("/searchUser", func(w http.ResponseWriter, req *http.Request) {
 		query := req.URL.Query().Get("q")
-		limit,err := strconv.Atoi(req.URL.Query().Get("limit"))
-		if err!=nil{
+		limit, err := strconv.Atoi(req.URL.Query().Get("limit"))
+		if err != nil {
 			http.Error(w, "Invalid Query", 400)
 		}
-		offset,err:= strconv.Atoi(req.URL.Query().Get("offset"))
-		if err !=nil{
-				http.Error(w, "Invalid Query", 400)		
+		offset, err := strconv.Atoi(req.URL.Query().Get("offset"))
+		if err != nil {
+			http.Error(w, "Invalid Query", 400)
 		}
-		resp,err := client.SearchUsers(context.TODO(),&searchpb.SearchUsersRequest{
+		resp, err := client.SearchUsers(context.TODO(), &searchpb.SearchUsersRequest{
 			Query: query,
 			Pagination: &searchpb.Pagination{
-				Limit: uint32(limit),
+				Limit:  uint32(limit),
 				Offset: uint32(offset),
 			},
 		})
@@ -136,7 +137,7 @@ func main() {
 	})
 
 	log.Printf("service listening on localhost:50053")
-	
+
 	log.Printf("Service listening on %s", listener.Addr())
 
 	if err := grpcServer.Serve(listener); err != nil {

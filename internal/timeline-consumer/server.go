@@ -16,14 +16,15 @@ import (
 )
 
 type TimeLineConsumerServer struct {
-	amqpConn    *amqp.Connection // do i need it ??
-	amqpChan    *amqp.Channel
-	RedisClient *redis.Client
-	FollowCol   *mongo.Collection // TODO Is There Some Reason because of which rather than
-	// Using this directly you might want to ask follow service to give me the list ??
-	ctx             context.Context
-	maxTimelineSize int64
-	postTTL         time.Duration // why this ?? 
+	amqpConn                *amqp.Connection
+	amqpChan                *amqp.Channel
+	RedisClient             *redis.Client
+	FollowCol               *mongo.Collection
+	UserCol                 *mongo.Collection // Check follower counts
+	ctx                     context.Context
+	maxTimelineSize         int64
+	postTTL                 time.Duration
+	bigPersonalityThreshold uint64 // Follower count threshold for fanout-read
 }
 
 type UserMessage struct {
@@ -37,7 +38,8 @@ type UserMessage struct {
 	FollowerCount  uint64
 	CreatedAt      time.Time
 }
-func NewServer(ctx context.Context, connStr string, redisOpts *redis.Options, followCol *mongo.Collection, timelineMax int64, postTTL time.Duration) (*TimeLineConsumerServer, error) {
+
+func NewServer(ctx context.Context, connStr string, redisOpts *redis.Options, followCol *mongo.Collection, userCol *mongo.Collection, timelineMax int64, postTTL time.Duration, bigPersonalityThreshold uint64) (*TimeLineConsumerServer, error) {
 	amqpConn, err := amqp.Dial(connStr)
 	if err != nil {
 		return nil, err
@@ -88,13 +90,15 @@ func NewServer(ctx context.Context, connStr string, redisOpts *redis.Options, fo
 	}
 
 	return &TimeLineConsumerServer{
-		amqpConn:        amqpConn,
-		amqpChan:        amqpChan,
-		RedisClient:     RedisClient,
-		FollowCol:       followCol,
-		ctx:             ctx,
-		maxTimelineSize: timelineMax,
-		postTTL:         postTTL,
+		amqpConn:                amqpConn,
+		amqpChan:                amqpChan,
+		RedisClient:             RedisClient,
+		FollowCol:               followCol,
+		UserCol:                 userCol,
+		ctx:                     ctx,
+		maxTimelineSize:         timelineMax,
+		postTTL:                 postTTL,
+		bigPersonalityThreshold: bigPersonalityThreshold,
 	}, nil
 }
 
@@ -137,12 +141,32 @@ func (s *TimeLineConsumerServer) postCreatedHandler(event events.PostCreatedEven
 	score := float64(event.CreatedAt.UnixMilli())
 
 	pipe := s.RedisClient.Pipeline()
+	// Always cache the post itself
 	if s.postTTL > 0 {
 		pipe.Set(s.ctx, postKey, payload, s.postTTL)
 	} else {
 		pipe.Set(s.ctx, postKey, payload, 0)
 	}
 
+	// Check if author is a big personality
+	isBig, err := s.isBigPersonality(event.AuthorID)
+	if err != nil {
+		log.Printf("failed to check big personality status: %v", err)
+		// Continue with fanout on error to be safe
+		isBig = false
+	}
+
+	if isBig {
+		// For big personalities, ONLY cache the post, skip fanout-write
+		log.Printf("Skipping fanout for big personality: %s", event.AuthorID)
+		if _, err := pipe.Exec(s.ctx); err != nil {
+			log.Printf("post cache failed: %v", err)
+			return pubsub.NackRequeue
+		}
+		return pubsub.Ack
+	}
+
+	// For normal users, perform fanout-write
 	followerIDs, err := s.loadFollowerIDs(event.AuthorID)
 	if err != nil {
 		return pubsub.NackRequeue
@@ -150,7 +174,6 @@ func (s *TimeLineConsumerServer) postCreatedHandler(event events.PostCreatedEven
 	followerIDs = append(followerIDs, event.AuthorID)
 
 	for _, followerID := range followerIDs {
-		// can be very heavy if too many users are there so covert that to be just Fanout read 
 		tKey := timelineKey(followerID)
 		pipe.ZAdd(s.ctx, tKey, redis.Z{Score: score, Member: event.PostID})
 		if s.maxTimelineSize > 0 {
@@ -191,6 +214,29 @@ func (s *TimeLineConsumerServer) loadFollowerIDs(authorID string) ([]string, err
 		return nil, err
 	}
 	return ids, nil
+}
+
+func (s *TimeLineConsumerServer) isBigPersonality(userID string) (bool, error) {
+	if s.UserCol == nil {
+		return false, errors.New("userCol not initialized")
+	}
+	if s.bigPersonalityThreshold == 0 {
+		return false, nil // Threshold not set, treat all as normal users
+	}
+
+	var result struct {
+		FollowerCount uint64 `bson:"followerCount"`
+	}
+
+	err := s.UserCol.FindOne(s.ctx, bson.M{"_id": userID}).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil // User not found, treat as normal
+		}
+		return false, err
+	}
+
+	return result.FollowerCount >= s.bigPersonalityThreshold, nil
 }
 
 func timelineKey(userID string) string {

@@ -13,7 +13,7 @@ service PostService {
   rpc GetPost(GetPostRequest) returns (GetPostResponse);
 
   rpc GetUserTimeline(GetUserTimelineRequest)
-      returns (GetUserTimelineResponse);
+      returns (stream TimelineChunk);
 
   rpc GetReplies(GetRepliesRequest)
       returns (GetRepliesResponse);
@@ -86,6 +86,13 @@ message GetUserTimelineRequest {
 message GetUserTimelineResponse {
   repeated Post posts = 1;
   string next_cursor = 2;
+}
+
+message TimelineChunk {
+  repeated Post posts = 1;
+  string source = 2;       // "redis" or "mongodb"
+  bool is_final = 3;       // true for last chunk
+  string next_cursor = 4;  // pagination cursor for next fetch
 }
 
 message GetRepliesRequest {

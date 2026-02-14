@@ -3,24 +3,26 @@ package config
 import (
 	"context"
 	"fmt"
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Config holds all configuration for the application
 type Config struct {
-	Mongo Mongo
-	GRPC  GRPC
-	App   App
-	Redis Redis
+	Mongo    Mongo
+	GRPC     GRPC
+	App      App
+	Redis    Redis
+	Timeline Timeline
 }
 
 // MongoDB holds MongoDB configuration
@@ -58,6 +60,13 @@ type Redis struct {
 	WriteTimeout    time.Duration
 	TimelineMaxSize int64
 	PostTTL         time.Duration
+}
+
+// Timeline holds timeline fanout configuration
+type Timeline struct {
+	BigPersonalityThreshold uint64  // Follower count threshold for big personalities
+	RedisRatio              float64 // Ratio of posts from Redis cache (0.0 - 1.0)
+	BigPersonalityRatio     float64 // Ratio of posts from big personalities (0.0 - 1.0)
 }
 
 // Load loads configuration from environment variables and fails fast when required variables are missing
@@ -113,7 +122,8 @@ func Load() *Config {
 			Env:      vals["APP_ENV"],
 			LogLevel: vals["LOG_LEVEL"],
 		},
-		Redis: loadRedisConfig(),
+		Redis:    loadRedisConfig(),
+		Timeline: loadTimelineConfig(),
 	}
 
 	cfg.initMongo(
@@ -175,6 +185,25 @@ func loadRedisConfig() Redis {
 	}
 }
 
+func loadTimelineConfig() Timeline {
+	threshold := uint64(getEnvIntDefault("TIMELINE_BIG_PERSONALITY_THRESHOLD", 10000))
+	redisRatio := getEnvFloatDefault("TIMELINE_REDIS_RATIO", 0.7)
+	bigPersonalityRatio := getEnvFloatDefault("TIMELINE_BIG_PERSONALITY_RATIO", 0.3)
+
+	// Normalize ratios if they don't sum to ~1.0
+	total := redisRatio + bigPersonalityRatio
+	if total > 0 {
+		redisRatio = redisRatio / total
+		bigPersonalityRatio = bigPersonalityRatio / total
+	}
+
+	return Timeline{
+		BigPersonalityThreshold: threshold,
+		RedisRatio:              redisRatio,
+		BigPersonalityRatio:     bigPersonalityRatio,
+	}
+}
+
 func getEnvDefault(key, def string) string {
 	val := os.Getenv(key)
 	if val == "" {
@@ -189,6 +218,18 @@ func getEnvIntDefault(key string, def int) int {
 		return def
 	}
 	parsed, err := strconv.Atoi(val)
+	if err != nil {
+		return def
+	}
+	return parsed
+}
+
+func getEnvFloatDefault(key string, def float64) float64 {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+	parsed, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		return def
 	}
@@ -247,6 +288,17 @@ func (c *Config) ensureIndexes(ctx context.Context) { //do testing with removing
 		log.Fatalf("post index rootId creation failed: %v", err)
 	}
 
+	// Index for querying posts by author and creation time (for big personality queries)
+	_, err = c.Mongo.PostCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "authorId", Value: 1},
+			{Key: "createdAt", Value: -1},
+		},
+	})
+	if err != nil {
+		log.Fatalf("post index authorId+createdAt creation failed: %v", err)
+	}
+
 	// Existing FollowCollection indexes
 	_, err = c.Mongo.FollowCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{
@@ -277,6 +329,16 @@ func (c *Config) ensureIndexes(ctx context.Context) { //do testing with removing
 	})
 	if err != nil {
 		log.Fatalf("user index creation failed: %v", err)
+	}
+
+	// Index for followerCount to identify big personalities
+	_, err = c.Mongo.UserCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "followerCount", Value: 1},
+		},
+	})
+	if err != nil {
+		log.Fatalf("user index followerCount creation failed: %v", err)
 	}
 }
 

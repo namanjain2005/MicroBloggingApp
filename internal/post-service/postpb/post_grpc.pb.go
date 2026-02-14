@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.0
 // - protoc             v6.33.2
-// source: post.proto
+// source: internal/post-service/post.proto
 
 package postpb
 
@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PostService_CreatePost_FullMethodName = "/post.PostService/CreatePost"
-	PostService_DeletePost_FullMethodName = "/post.PostService/DeletePost"
-	PostService_GetPost_FullMethodName    = "/post.PostService/GetPost"
+	PostService_CreatePost_FullMethodName      = "/post.PostService/CreatePost"
+	PostService_DeletePost_FullMethodName      = "/post.PostService/DeletePost"
+	PostService_GetPost_FullMethodName         = "/post.PostService/GetPost"
 	PostService_GetUserTimeline_FullMethodName = "/post.PostService/GetUserTimeline"
-	PostService_GetReplies_FullMethodName = "/post.PostService/GetReplies"
-	PostService_GetThread_FullMethodName  = "/post.PostService/GetThread"
-	PostService_LikePost_FullMethodName   = "/post.PostService/LikePost"
-	PostService_UnlikePost_FullMethodName = "/post.PostService/UnlikePost"
+	PostService_GetReplies_FullMethodName      = "/post.PostService/GetReplies"
+	PostService_GetThread_FullMethodName       = "/post.PostService/GetThread"
+	PostService_LikePost_FullMethodName        = "/post.PostService/LikePost"
+	PostService_UnlikePost_FullMethodName      = "/post.PostService/UnlikePost"
 )
 
 // PostServiceClient is the client API for PostService service.
@@ -36,7 +36,7 @@ type PostServiceClient interface {
 	CreatePost(ctx context.Context, in *CreatePostRequest, opts ...grpc.CallOption) (*CreatePostResponse, error)
 	DeletePost(ctx context.Context, in *DeletePostRequest, opts ...grpc.CallOption) (*DeletePostResponse, error)
 	GetPost(ctx context.Context, in *GetPostRequest, opts ...grpc.CallOption) (*GetPostResponse, error)
-	GetUserTimeline(ctx context.Context, in *GetUserTimelineRequest, opts ...grpc.CallOption) (*GetUserTimelineResponse, error)
+	GetUserTimeline(ctx context.Context, in *GetUserTimelineRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TimelineChunk], error)
 	GetReplies(ctx context.Context, in *GetRepliesRequest, opts ...grpc.CallOption) (*GetRepliesResponse, error)
 	GetThread(ctx context.Context, in *GetThreadRequest, opts ...grpc.CallOption) (*GetThreadResponse, error)
 	LikePost(ctx context.Context, in *LikePostRequest, opts ...grpc.CallOption) (*LikePostResponse, error)
@@ -81,15 +81,24 @@ func (c *postServiceClient) GetPost(ctx context.Context, in *GetPostRequest, opt
 	return out, nil
 }
 
-func (c *postServiceClient) GetUserTimeline(ctx context.Context, in *GetUserTimelineRequest, opts ...grpc.CallOption) (*GetUserTimelineResponse, error) {
+func (c *postServiceClient) GetUserTimeline(ctx context.Context, in *GetUserTimelineRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TimelineChunk], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetUserTimelineResponse)
-	err := c.cc.Invoke(ctx, PostService_GetUserTimeline_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &PostService_ServiceDesc.Streams[0], PostService_GetUserTimeline_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[GetUserTimelineRequest, TimelineChunk]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PostService_GetUserTimelineClient = grpc.ServerStreamingClient[TimelineChunk]
 
 func (c *postServiceClient) GetReplies(ctx context.Context, in *GetRepliesRequest, opts ...grpc.CallOption) (*GetRepliesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -138,7 +147,7 @@ type PostServiceServer interface {
 	CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error)
 	DeletePost(context.Context, *DeletePostRequest) (*DeletePostResponse, error)
 	GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error)
-	GetUserTimeline(context.Context, *GetUserTimelineRequest) (*GetUserTimelineResponse, error)
+	GetUserTimeline(*GetUserTimelineRequest, grpc.ServerStreamingServer[TimelineChunk]) error
 	GetReplies(context.Context, *GetRepliesRequest) (*GetRepliesResponse, error)
 	GetThread(context.Context, *GetThreadRequest) (*GetThreadResponse, error)
 	LikePost(context.Context, *LikePostRequest) (*LikePostResponse, error)
@@ -162,8 +171,8 @@ func (UnimplementedPostServiceServer) DeletePost(context.Context, *DeletePostReq
 func (UnimplementedPostServiceServer) GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPost not implemented")
 }
-func (UnimplementedPostServiceServer) GetUserTimeline(context.Context, *GetUserTimelineRequest) (*GetUserTimelineResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetUserTimeline not implemented")
+func (UnimplementedPostServiceServer) GetUserTimeline(*GetUserTimelineRequest, grpc.ServerStreamingServer[TimelineChunk]) error {
+	return status.Error(codes.Unimplemented, "method GetUserTimeline not implemented")
 }
 func (UnimplementedPostServiceServer) GetReplies(context.Context, *GetRepliesRequest) (*GetRepliesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetReplies not implemented")
@@ -252,23 +261,16 @@ func _PostService_GetPost_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PostService_GetUserTimeline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUserTimelineRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _PostService_GetUserTimeline_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetUserTimelineRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(PostServiceServer).GetUserTimeline(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PostService_GetUserTimeline_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostServiceServer).GetUserTimeline(ctx, req.(*GetUserTimelineRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(PostServiceServer).GetUserTimeline(m, &grpc.GenericServerStream[GetUserTimelineRequest, TimelineChunk]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PostService_GetUserTimelineServer = grpc.ServerStreamingServer[TimelineChunk]
 
 func _PostService_GetReplies_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRepliesRequest)
@@ -362,10 +364,6 @@ var PostService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PostService_GetPost_Handler,
 		},
 		{
-			MethodName: "GetUserTimeline",
-			Handler:    _PostService_GetUserTimeline_Handler,
-		},
-		{
 			MethodName: "GetReplies",
 			Handler:    _PostService_GetReplies_Handler,
 		},
@@ -382,6 +380,12 @@ var PostService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PostService_UnlikePost_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "post.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetUserTimeline",
+			Handler:       _PostService_GetUserTimeline_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "internal/post-service/post.proto",
 }

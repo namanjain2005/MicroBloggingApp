@@ -29,8 +29,10 @@ func main() {
 		connStr,
 		redisOpts,
 		cfg.Mongo.FollowCollection,
+		cfg.Mongo.UserCollection,
 		cfg.Redis.TimelineMaxSize,
 		cfg.Redis.PostTTL,
+		cfg.Timeline.BigPersonalityThreshold,
 	)
 	if err != nil {
 		log.Fatalf("timeline consumer init failed: %v", err)
