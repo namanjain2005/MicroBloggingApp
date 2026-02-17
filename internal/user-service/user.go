@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	pb "microBloggingAPP/internal/user-service/userpb"
+	pb "microBloggingAPP/userpb"
 	"time"
 
 	"github.com/google/uuid"
@@ -72,7 +72,7 @@ func CreateUser(ctx context.Context, col *mongo.Collection, req *pb.CreateUserRe
 		return nil, fmt.Errorf("failed to create user: %v", err)
 	}
 
-	return &user,nil
+	return &user, nil
 }
 
 func GetUserByID(ctx context.Context, col *mongo.Collection, req *pb.GetUserByIDRequest) (*User, error) {
@@ -89,7 +89,7 @@ func GetUserByID(ctx context.Context, col *mongo.Collection, req *pb.GetUserByID
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	return &user,nil
+	return &user, nil
 }
 
 func GetUserByEmail(ctx context.Context, col *mongo.Collection, req *pb.GetUserByEmailRequest) (*User, error) {
@@ -104,7 +104,7 @@ func GetUserByEmail(ctx context.Context, col *mongo.Collection, req *pb.GetUserB
 		}
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
-	return &user,nil
+	return &user, nil
 }
 
 func ModifyBio(ctx context.Context, col *mongo.Collection, req *pb.ModifyBioRequest) (*User, error) {
@@ -132,5 +132,5 @@ func ModifyBio(ctx context.Context, col *mongo.Collection, req *pb.ModifyBioRequ
 		return nil, fmt.Errorf("failed to update bio: %w", err)
 	}
 
-	return &user,nil
+	return &user, nil
 }

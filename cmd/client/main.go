@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -155,23 +157,39 @@ func processCommand(app *client.App, cmd []string) error {
 		return nil
 
 	case "create_user":
+		
 		if len(cmd) < 4 {
 			return fmt.Errorf("usage: create_user <name> <email> <password>")
 		}
-		return runUser(app, func(c userpb.UserServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.CreateUser(ctx, &userpb.CreateUserRequest{
-				Name:     cmd[1],
-				Email:    cmd[2],
-				Password: cmd[3],
-			})
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Created User: %s (ID: %s)\n", res.Name, res.Id)
-			return nil
-		})
+		
+		payload := map[string]string{
+			"name":     cmd[1],
+			"email":    cmd[2],
+			"password": cmd[3],
+		}
+
+		CreateUserJsonData, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+
+		gatewayURL := "http://localhost:8080/user"
+
+		resp, err := http.Post(gatewayURL, "application/json", bytes.NewBuffer(CreateUserJsonData))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("Server Response:")
+		fmt.Println(string(body))
+		fmt.Printf("Created User: resonse - %v",resp)
+		return nil
 
 	case "get_user":
 		if len(cmd) < 2 {

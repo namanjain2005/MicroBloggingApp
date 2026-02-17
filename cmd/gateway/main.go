@@ -4,27 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"microBloggingAPP/internal/search-service/searchpb"
+	"microBloggingAPP/userpb"
 	"net/http"
 	"strconv"
 	"time"
-
-	"microBloggingAPP/internal/search-service/searchpb"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// GatewayServer holds the gRPC client connection
 type GatewayServer struct {
-	searchClient searchpb.SearchServiceClient
-	grpcConn     *grpc.ClientConn
+	context context.Context
+	searchClient searchpb.SearchServiceClient // should it be a pointer ?? 
+	userClient   userpb.UserServiceClient
+	//grpcConn     *grpc.ClientConn do i need it ?? 
 }
 
-// UserResult is the JSON response structure for a user
 type UserResult struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	UserID   string `json:"Id"`
+	Username string `json:"Name"`
+	Email    string `json:"Email"`
 }
 
 // SearchUsersResponse is the JSON response structure
@@ -39,32 +39,131 @@ type ErrorResponse struct {
 }
 
 func main() {
-	// Connect to gRPC search service
-	grpcAddr := "localhost:50053"
-	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	SearchGrpcAddr := "localhost:50053"
+	SearchConn, err := grpc.NewClient(SearchGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to connect to gRPC server: %v", err)
+		// should it panic
+		log.Fatalf("Failed to connect to search gRPC server: %v", err)
 	}
-	defer conn.Close()
+	defer SearchConn.Close()
 
+
+	UserGrpcAddr := "localhost:50054"
+	UserConn, err := grpc.NewClient(UserGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		// should it panic
+		log.Fatalf("Failed to connect to search gRPC server: %v", err)
+	}
+	defer UserConn.Close()
+
+	
 	gateway := &GatewayServer{
-		searchClient: searchpb.NewSearchServiceClient(conn),
-		grpcConn:     conn,
+		context : context.TODO(),
+		userClient: userpb.NewUserServiceClient(UserConn),
+		searchClient: searchpb.NewSearchServiceClient(SearchConn),
 	}
 
-	// Set up HTTP routes
-	http.HandleFunc("/search/users", gateway.handleSearchUsers)
+	// Routes
 	http.HandleFunc("/", gateway.handleRoot)
-
-	// Start HTTP server
+	http.HandleFunc("/search/users", gateway.handleSearchUsers)
+	http.HandleFunc("/users", gateway.handleUsers)
+	
 	httpAddr := ":8080"
 	log.Printf("HTTP Gateway listening on %s", httpAddr)
-	log.Printf("Forwarding requests to gRPC service at %s", grpcAddr)
+	log.Printf("Forwarding requests to gRPC service at %s", SearchGrpcAddr)
 	log.Printf("Usage: GET /search/users?q=<query>&limit=<limit>&offset=<offset>")
 
 	if err := http.ListenAndServe(httpAddr, nil); err != nil {
 		log.Fatalf("HTTP server failed: %v", err)
 	}
+}
+
+func (g* GatewayServer) handleUsers(w http.ResponseWriter,r *http.Request){
+	switch r.Method{
+		case http.MethodGet:
+			g.handleGetUser(w, r)
+		case http.MethodPost:
+			g.handleCreateUser(w,r)
+		default:
+			http.Error(w, "method not allowed",http.StatusMethodNotAllowed)
+	}
+}
+
+func (g* GatewayServer) handleGetUser(w http.ResponseWriter,r *http.Request){
+	email := r.URL.Query().Get("email")
+	if email != ""{
+		// i dont which one should we prioritize
+		// but here i am prioritizing john@doe.com
+		g.handleGetUserByEmail(w,r)
+	}
+
+	if id != ""{
+		
+	}
+}
+
+func (g* GatewayServer) handleGetUserByEmail(w http.ResponseWriter,r *http.Request){
+	var req userpb.GetUserByEmailRequest
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&req)
+	if err != nil{
+		http.Error(w, "Invalid JSON Body: " + err.Error(), http.StatusBadRequest)
+	}
+
+	resp,err := g.userClient.GetUserByEmail(g.context,&req)
+	if err != nil{
+		// TODO try to understand grpc err for now just internal err 
+		http.Error(w,"TLDR:; " + err.Error(),http.StatusInternalServerError)
+	}
+	
+	userResp := UserResult{
+		UserID: resp.User.Id,
+		Username: resp.User.Name,
+		Email: resp.User.Email,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	
+	if err = json.NewEncoder(w).Encode(userResp);err != nil{
+		// is this what i should do ?? 
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	
+	
+}
+
+func (g* GatewayServer) handleCreateUser(w http.ResponseWriter,r *http.Request){
+
+	var req userpb.CreateUserRequest
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&req)
+	if err != nil{
+		http.Error(w, "Invalid JSON Body: " + err.Error(), http.StatusBadRequest)
+	}
+
+	resp,err := g.userClient.CreateUser(g.context,&req)
+	if err != nil{
+		// TODO try to understand grpc err for now just internal err 
+		http.Error(w,"TLDR:; " + err.Error(),http.StatusInternalServerError)
+	}
+
+	userResp := UserResult{
+		UserID: resp.User.Id,
+		Username: resp.User.Name,
+		Email: resp.User.Email,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	
+	if err = json.NewEncoder(w).Encode(userResp);err != nil{
+		// is this what i should do ?? 
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	
 }
 
 func (g *GatewayServer) handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -150,4 +249,4 @@ func (g *GatewayServer) handleSearchUsers(w http.ResponseWriter, r *http.Request
 	}
 
 	json.NewEncoder(w).Encode(result)
-}
+} 

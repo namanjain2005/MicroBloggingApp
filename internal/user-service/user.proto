@@ -6,10 +6,10 @@ option go_package = "userpb/";
 import "google/protobuf/timestamp.proto";
 
 service UserService {
-  rpc CreateUser (CreateUserRequest) returns (User); // may be create new msg response for all methods may be
-  rpc GetUserByID (GetUserByIDRequest) returns (User);
-  rpc GetUserByEmail (GetUserByEmailRequest) returns (User);
-  rpc ModifyBio (ModifyBioRequest) returns (User);
+  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+  rpc GetUserByID (GetUserByIDRequest) returns (GetUserResponse );
+  rpc GetUserByEmail (GetUserByEmailRequest) returns (GetUserResponse );
+  rpc ModifyBio (ModifyBioRequest) returns (ModifyBioResponse );
 }
 
 message User {
@@ -20,6 +20,18 @@ message User {
     string Hashedpassword = 5;
     uint64 FollowerCount = 6;
     google.protobuf.Timestamp createdAt = 7;
+}
+
+message CreateUserResponse {
+    User user = 1;
+}
+
+message GetUserResponse {
+    User user = 1;
+}
+
+message ModifyBioResponse {
+    User user = 1;
 }
 
 message ModifyBioRequest{

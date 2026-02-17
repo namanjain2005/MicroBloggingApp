@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log"
 	"microBloggingAPP/internal/pubsub"
-	pb "microBloggingAPP/internal/user-service/userpb"
+	"microBloggingAPP/userpb"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,20 +18,20 @@ import (
 
 // ServiceUserServer implements the UserServiceServer interface
 type ServiceUserServer struct {
-	pb.UnimplementedUserServiceServer
+	userpb.UnimplementedUserServiceServer
 	UserCol  *mongo.Collection
 	amqpConn *amqp.Connection
 	amqpChan *amqp.Channel
 	//connStr string
 }
 
-type userEventLog struct{
-	user User
+type userEventLog struct {
+	user      User
 	EventName string
 }
 
 const (
-	UserService       = "UserService"
+	UserService        = "UserService"
 	ExchangeUserFanOut = "UserFanOut"
 )
 
@@ -46,7 +46,7 @@ func NewServer(col *mongo.Collection, connStr string) (*ServiceUserServer, error
 		amqpConn.Close()
 		return nil, err
 	}
-	
+
 	err = amqpChan.ExchangeDeclare(ExchangeUserFanOut, "fanout", true, false, false, false, nil)
 	if err != nil {
 		amqpConn.Close()
@@ -60,20 +60,7 @@ func NewServer(col *mongo.Collection, connStr string) (*ServiceUserServer, error
 	}, nil
 }
 
-/*
-func (s *ServiceUserServer) serviceVibeCheck() error{
-	if(s.col == nil){
-		return errors.New("database collection is not initialized")
-	}
-	if(req == nil){
-		return errors.New("request cannot be nil")
-	}
-	return nil
-}*/
-
-//func (s *ServiceUserServer)
-
-func (s *ServiceUserServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.User, error) {
+func (s *ServiceUserServer) CreateUser(ctx context.Context, req *userpb.CreateUserRequest) (*userpb.CreateUserResponse, error) {
 	if s.UserCol == nil {
 		return nil, errors.New("database collection not initialized")
 	}
@@ -90,23 +77,25 @@ func (s *ServiceUserServer) CreateUser(ctx context.Context, req *pb.CreateUserRe
 	userMsg := &userEventLog{
 		// TODO should it be value or address i think this is a
 		// feature of may json.Marshal but in concept it is still struct as value
-		user: *user,
+		user:      *user,
 		EventName: "create",
 	}
 
-	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut,"User.create", userMsg)
+	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut, "User.create", userMsg)
 
-	return &pb.User{
-		Id:             user.Id,
-		Name:           user.Name,
-		Email:          user.Email,
-		Hashedpassword: user.HashedPassword,
-		FollowerCount:  user.FollowerCount,
-		CreatedAt:      timestamppb.New(user.CreatedAt),
+	return &userpb.CreateUserResponse{
+		User: &userpb.User{
+			Id:             user.Id,
+			Name:           user.Name,
+			Email:          user.Email,
+			Hashedpassword: user.HashedPassword,
+			FollowerCount:  user.FollowerCount,
+			CreatedAt:      timestamppb.New(user.CreatedAt),
+		},
 	}, nil
 }
 
-func (s *ServiceUserServer) GetUserByID(ctx context.Context, req *pb.GetUserByIDRequest) (*pb.User, error) {
+func (s *ServiceUserServer) GetUserByID(ctx context.Context, req *userpb.GetUserByIDRequest) (*userpb.GetUserResponse, error) {
 	if s.UserCol == nil {
 		return nil, errors.New("database collection not initialized")
 	}
@@ -119,17 +108,19 @@ func (s *ServiceUserServer) GetUserByID(ctx context.Context, req *pb.GetUserByID
 	if err != nil {
 		return nil, err
 	}
-	return &pb.User{
-		Id:            user.Id,
-		Name:          user.Name,
-		Email:         user.Email,
-		FollowerCount: user.FollowerCount,
-		Bio:           user.Bio,
-		CreatedAt:     timestamppb.New(user.CreatedAt),
+	return &userpb.GetUserResponse{
+		User: &userpb.User{
+			Id:            user.Id,
+			Name:          user.Name,
+			Email:         user.Email,
+			FollowerCount: user.FollowerCount,
+			Bio:           user.Bio,
+			CreatedAt:     timestamppb.New(user.CreatedAt),
+		},
 	}, nil
 }
 
-func (s *ServiceUserServer) GetUserByEmail(ctx context.Context, req *pb.GetUserByEmailRequest) (*pb.User, error) {
+func (s *ServiceUserServer) GetUserByEmail(ctx context.Context, req *userpb.GetUserByEmailRequest) (*userpb.GetUserResponse, error) {
 	if s.UserCol == nil {
 		return nil, errors.New("database collection is not initialized")
 	}
@@ -142,17 +133,19 @@ func (s *ServiceUserServer) GetUserByEmail(ctx context.Context, req *pb.GetUserB
 		return nil, err
 	}
 
-	return &pb.User{
-		Id:            user.Id,
-		Name:          user.Name,
-		Email:         user.Email,
-		FollowerCount: user.FollowerCount,
-		Bio:           user.Bio,
-		CreatedAt:     timestamppb.New(user.CreatedAt),
+	return &userpb.GetUserResponse{
+		User: &userpb.User{
+			Id:            user.Id,
+			Name:          user.Name,
+			Email:         user.Email,
+			FollowerCount: user.FollowerCount,
+			Bio:           user.Bio,
+			CreatedAt:     timestamppb.New(user.CreatedAt),
+		},
 	}, nil
 }
 
-func (s *ServiceUserServer) ModifyBio(ctx context.Context, req *pb.ModifyBioRequest) (*pb.User, error) {
+func (s *ServiceUserServer) ModifyBio(ctx context.Context, req *userpb.ModifyBioRequest) (*userpb.ModifyBioResponse, error) {
 	if s.UserCol == nil {
 		return nil, errors.New("database collection is not initialized")
 	}
@@ -165,19 +158,20 @@ func (s *ServiceUserServer) ModifyBio(ctx context.Context, req *pb.ModifyBioRequ
 	}
 
 	userMsg := &userEventLog{
-		user: *user,
+		user:      *user,
 		EventName: "BioModification",
 	}
 
-	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut, "User.Bio",userMsg )
-	
-	return &pb.User{
-		Id:            user.Id,
-		Name:          user.Name,
-		Email:         user.Email,
-		FollowerCount: user.FollowerCount,
-		Bio:           user.Bio,
-		CreatedAt:     timestamppb.New(user.CreatedAt),
+	pubsub.PublishJSON(ctx, s.amqpChan, ExchangeUserFanOut, "User.Bio", userMsg)
+
+	return &userpb.ModifyBioResponse{
+		User: &userpb.User{
+			Id:            user.Id,
+			Name:          user.Name,
+			Email:         user.Email,
+			FollowerCount: user.FollowerCount,
+			Bio:           user.Bio,
+			CreatedAt:     timestamppb.New(user.CreatedAt),
+		},
 	}, nil
 }
-
