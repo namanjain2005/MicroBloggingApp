@@ -10,9 +10,7 @@ import (
 	"microBloggingAPP/internal/client"
 	"microBloggingAPP/internal/config"
 	"microBloggingAPP/internal/post-service/postpb"
-	"microBloggingAPP/internal/search-service/searchpb"
 	"microBloggingAPP/internal/social-service/socialpb"
-	"microBloggingAPP/internal/user-service/userpb"
 	"net/http"
 	"os"
 	"strconv"
@@ -157,93 +155,159 @@ func processCommand(app *client.App, cmd []string) error {
 		return nil
 
 	case "create_user":
-		
 		if len(cmd) < 4 {
 			return fmt.Errorf("usage: create_user <name> <email> <password>")
 		}
-		
+
 		payload := map[string]string{
 			"name":     cmd[1],
 			"email":    cmd[2],
 			"password": cmd[3],
 		}
 
-		CreateUserJsonData, err := json.Marshal(payload)
+		createUserJsonData, err := json.Marshal(payload)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 
-		gatewayURL := "http://localhost:8080/user"
+		gatewayURL := "http://localhost:8080/users"
 
-		resp, err := http.Post(gatewayURL, "application/json", bytes.NewBuffer(CreateUserJsonData))
+		resp, err := http.Post(gatewayURL, "application/json", bytes.NewBuffer(createUserJsonData))
 		if err != nil {
-			return err
+			return fmt.Errorf("request failed: %w", err)
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read response: %w", err)
 		}
 
-		fmt.Println("Server Response:")
-		fmt.Println(string(body))
-		fmt.Printf("Created User: resonse - %v",resp)
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ Created User:\n")
+		fmt.Printf("  ID: %v\n", result["Id"])
+		fmt.Printf("  Name: %v\n", result["Name"])
+		fmt.Printf("  Email: %v\n", result["Email"])
 		return nil
 
 	case "get_user":
 		if len(cmd) < 2 {
 			return fmt.Errorf("usage: get_user <id>")
 		}
-		return runUser(app, func(c userpb.UserServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.GetUserByID(ctx, &userpb.GetUserByIDRequest{
-				Id: cmd[1],
-			})
-			if err != nil {
-				return err
-			}
-			fmt.Printf("User: %s (Email: %s, Bio: %s)\n", res.Name, res.Email, res.Bio)
-			return nil
-		})
+
+		gatewayURL := fmt.Sprintf("http://localhost:8080/users?id=%s", cmd[1])
+		resp, err := http.Get(gatewayURL)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ User Found:\n")
+		fmt.Printf("  ID: %v\n", result["Id"])
+		fmt.Printf("  Name: %v\n", result["Name"])
+		fmt.Printf("  Email: %v\n", result["Email"])
+		return nil
 
 	case "get_user_by_email":
 		if len(cmd) < 2 {
 			return fmt.Errorf("usage: get_user_by_email <email>")
 		}
-		return runUser(app, func(c userpb.UserServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.GetUserByEmail(ctx, &userpb.GetUserByEmailRequest{
-				Email: cmd[1],
-			})
-			if err != nil {
-				return err
-			}
-			fmt.Printf("User: %s (ID: %s, Bio: %s)\n", res.Name, res.Id, res.Bio)
-			return nil
-		})
+
+		gatewayURL := fmt.Sprintf("http://localhost:8080/users?email=%s", cmd[1])
+		resp, err := http.Get(gatewayURL)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ User Found:\n")
+		fmt.Printf("  ID: %v\n", result["Id"])
+		fmt.Printf("  Name: %v\n", result["Name"])
+		fmt.Printf("  Email: %v\n", result["Email"])
+		return nil
 
 	case "modify_bio":
 		if len(cmd) < 3 {
 			return fmt.Errorf("usage: modify_bio <id> <bio>")
 		}
-		return runUser(app, func(c userpb.UserServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			// Join remaining args for bio as it might contain spaces
-			bio := strings.Join(cmd[2:], " ")
-			res, err := c.ModifyBio(ctx, &userpb.ModifyBioRequest{
-				Id:  cmd[1],
-				Bio: bio,
-			})
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Updated Bio for %s: %s\n", res.Name, res.Bio)
-			return nil
-		})
+
+		bio := strings.Join(cmd[2:], " ")
+		payload := map[string]string{
+			"id":  cmd[1],
+			"bio": bio,
+		}
+
+		modifyBioJsonData, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		req, err := http.NewRequest(http.MethodPatch, "http://localhost:8080/users", bytes.NewBuffer(modifyBioJsonData))
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ Bio Updated Successfully:\n")
+		fmt.Printf("  User: %v\n", result["Name"])
+		return nil
 
 	// case "create_post":
 	// 	if len(cmd) < 3 {
@@ -542,31 +606,11 @@ func run(app *client.App, fn func(socialpb.FollowServiceClient) error) error {
 	return nil
 }
 
-func runUser(app *client.App, fn func(userpb.UserServiceClient) error) error {
-	if err := app.Ensure(); err != nil {
-		return fmt.Errorf("connection error: %w", err)
-	}
-	if err := fn(app.UserClient()); err != nil {
-		return fmt.Errorf("rpc error: %w", err)
-	}
-	return nil
-}
-
 func runPost(app *client.App, fn func(postpb.PostServiceClient) error) error {
 	if err := app.Ensure(); err != nil {
 		return fmt.Errorf("connection error: %w", err)
 	}
 	if err := fn(app.PostClient()); err != nil {
-		return fmt.Errorf("rpc error: %w", err)
-	}
-	return nil
-}
-
-func runSearch(app *client.App, fn func(searchpb.SearchServiceClient) error) error {
-	if err := app.Ensure(); err != nil {
-		return fmt.Errorf("connection error: %w", err)
-	}
-	if err := fn(app.SearchClient()); err != nil {
 		return fmt.Errorf("rpc error: %w", err)
 	}
 	return nil

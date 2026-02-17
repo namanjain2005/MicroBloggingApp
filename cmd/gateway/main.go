@@ -15,10 +15,10 @@ import (
 )
 
 type GatewayServer struct {
-	context context.Context
-	searchClient searchpb.SearchServiceClient // should it be a pointer ?? 
+	context      context.Context
+	searchClient searchpb.SearchServiceClient // should it be a pointer ??
 	userClient   userpb.UserServiceClient
-	//grpcConn     *grpc.ClientConn do i need it ?? 
+	//grpcConn     *grpc.ClientConn do i need it ??
 }
 
 type UserResult struct {
@@ -47,19 +47,17 @@ func main() {
 	}
 	defer SearchConn.Close()
 
-
 	UserGrpcAddr := "localhost:50054"
 	UserConn, err := grpc.NewClient(UserGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		// should it panic
-		log.Fatalf("Failed to connect to search gRPC server: %v", err)
+		log.Fatalf("Failed to connect to User gRPC server: %v", err)
 	}
 	defer UserConn.Close()
 
-	
 	gateway := &GatewayServer{
-		context : context.TODO(),
-		userClient: userpb.NewUserServiceClient(UserConn),
+		context:      context.TODO(),
+		userClient:   userpb.NewUserServiceClient(UserConn),
 		searchClient: searchpb.NewSearchServiceClient(SearchConn),
 	}
 
@@ -67,7 +65,7 @@ func main() {
 	http.HandleFunc("/", gateway.handleRoot)
 	http.HandleFunc("/search/users", gateway.handleSearchUsers)
 	http.HandleFunc("/users", gateway.handleUsers)
-	
+
 	httpAddr := ":8080"
 	log.Printf("HTTP Gateway listening on %s", httpAddr)
 	log.Printf("Forwarding requests to gRPC service at %s", SearchGrpcAddr)
@@ -78,107 +76,153 @@ func main() {
 	}
 }
 
-func (g* GatewayServer) handleUsers(w http.ResponseWriter,r *http.Request){
-	switch r.Method{
-		case http.MethodGet:
-			g.handleGetUser(w, r)
-		case http.MethodPost:
-			g.handleCreateUser(w,r)
-		default:
-			http.Error(w, "method not allowed",http.StatusMethodNotAllowed)
+func (g *GatewayServer) handleUsers(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		g.handleGetUser(w, r)
+	case http.MethodPost:
+		g.handleCreateUser(w, r)
+	case http.MethodPatch:
+		g.handleModifyBio(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-func (g* GatewayServer) handleGetUser(w http.ResponseWriter,r *http.Request){
+func (g *GatewayServer) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
-	if email != ""{
-		// i dont which one should we prioritize
-		// but here i am prioritizing john@doe.com
-		g.handleGetUserByEmail(w,r)
+	id := r.URL.Query().Get("id")
+
+	// Validate that at least one parameter is provided
+	if email == "" && id == "" {
+		http.Error(w, "Missing required query parameter: 'id' or 'email'", http.StatusBadRequest)
+		return
 	}
 
-	if id != ""{
-		
+	// Prioritize email if both are provided
+	if email != "" {
+		g.getUserByEmail(w, email)
+		return
+	}
+
+	// Otherwise, get by ID
+	g.getUserByID(w, id)
+}
+
+func (g *GatewayServer) getUserByEmail(w http.ResponseWriter, email string) {
+	var req userpb.GetUserByEmailRequest
+	req.Email = email
+
+	resp, err := g.userClient.GetUserByEmail(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	userResp := UserResult{
+		UserID:   resp.User.Id,
+		Username: resp.User.Name,
+		Email:    resp.User.Email,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(userResp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func (g* GatewayServer) handleGetUserByEmail(w http.ResponseWriter,r *http.Request){
-	var req userpb.GetUserByEmailRequest
+func (g *GatewayServer) getUserByID(w http.ResponseWriter, id string) {
+	var req userpb.GetUserByIDRequest
+	req.Id = id
+
+	resp, err := g.userClient.GetUserByID(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	userResp := UserResult{
+		UserID:   resp.User.Id,
+		Username: resp.User.Name,
+		Email:    resp.User.Email,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(userResp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (g *GatewayServer) handleModifyBio(w http.ResponseWriter, r *http.Request) {
+	var req userpb.ModifyBioRequest
 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(&req)
-	if err != nil{
-		http.Error(w, "Invalid JSON Body: " + err.Error(), http.StatusBadRequest)
+	if err != nil {
+		http.Error(w, "Invalid JSON Body: "+err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	resp,err := g.userClient.GetUserByEmail(g.context,&req)
-	if err != nil{
-		// TODO try to understand grpc err for now just internal err 
-		http.Error(w,"TLDR:; " + err.Error(),http.StatusInternalServerError)
+	resp, err := g.userClient.ModifyBio(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
-	
+
 	userResp := UserResult{
-		UserID: resp.User.Id,
+		UserID:   resp.User.Id,
 		Username: resp.User.Name,
-		Email: resp.User.Email,
+		Email:    resp.User.Email,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
-	
-	if err = json.NewEncoder(w).Encode(userResp);err != nil{
-		// is this what i should do ?? 
+
+	if err = json.NewEncoder(w).Encode(userResp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	
-	
 }
 
-func (g* GatewayServer) handleCreateUser(w http.ResponseWriter,r *http.Request){
+func (g *GatewayServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	var req userpb.CreateUserRequest
 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(&req)
-	if err != nil{
-		http.Error(w, "Invalid JSON Body: " + err.Error(), http.StatusBadRequest)
-	}
-
-	resp,err := g.userClient.CreateUser(g.context,&req)
-	if err != nil{
-		// TODO try to understand grpc err for now just internal err 
-		http.Error(w,"TLDR:; " + err.Error(),http.StatusInternalServerError)
-	}
-
-	userResp := UserResult{
-		UserID: resp.User.Id,
-		Username: resp.User.Name,
-		Email: resp.User.Email,
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	
-	if err = json.NewEncoder(w).Encode(userResp);err != nil{
-		// is this what i should do ?? 
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	
-}
-
-func (g *GatewayServer) handleRoot(w http.ResponseWriter, r *http.Request) {
-	// For backward compatibility with your current client URL format
-	// Handles: GET /?q=<query>&limit=<limit>&offset=<offset>
-	query := r.URL.Query().Get("q")
-	if query != "" {
-		g.handleSearchUsers(w, r)
+	if err != nil {
+		http.Error(w, "Invalid JSON Body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	resp, err := g.userClient.CreateUser(g.context, &req)
+	if err != nil {
+		// TODO try to understand grpc err for now just internal err
+		http.Error(w, "TLDR:; "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	userResp := UserResult{
+		UserID:   resp.User.Id,
+		Username: resp.User.Name,
+		Email:    resp.User.Email,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err = json.NewEncoder(w).Encode(userResp); err != nil {
+		// is this what i should do ??
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func (g *GatewayServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"status":  "ok",
-		"message": "Search Gateway. Use GET /search/users?q=<query> or GET /?q=<query>",
+		"message": "Gateway is working",
 	})
 }
 
@@ -249,4 +293,4 @@ func (g *GatewayServer) handleSearchUsers(w http.ResponseWriter, r *http.Request
 	}
 
 	json.NewEncoder(w).Encode(result)
-} 
+}

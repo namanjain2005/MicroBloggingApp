@@ -5,7 +5,6 @@ import (
 	postpb "microBloggingAPP/internal/post-service/postpb"
 	searchpb "microBloggingAPP/internal/search-service/searchpb"
 	pb "microBloggingAPP/internal/social-service/socialpb"
-	userpb "microBloggingAPP/internal/user-service/userpb"
 	"sync"
 	"time"
 
@@ -19,7 +18,6 @@ type App struct {
 	addr         string
 	conn         *grpc.ClientConn
 	followclient pb.FollowServiceClient
-	userClient   userpb.UserServiceClient
 	postClient   postpb.PostServiceClient
 	searchClient searchpb.SearchServiceClient
 }
@@ -38,7 +36,6 @@ func (a *App) connect() error {
 	}
 	a.conn = conn
 	a.followclient = pb.NewFollowServiceClient(conn)
-	a.userClient = userpb.NewUserServiceClient(conn)
 	a.postClient = postpb.NewPostServiceClient(conn)
 	a.searchClient = searchpb.NewSearchServiceClient(conn)
 	return nil
@@ -73,10 +70,6 @@ func (a *App) Close() error {
 
 func (a *App) FollowClient() pb.FollowServiceClient {
 	return a.followclient
-}
-
-func (a *App) UserClient() userpb.UserServiceClient {
-	return a.userClient
 }
 
 func (a *App) PostClient() postpb.PostServiceClient {

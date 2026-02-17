@@ -9,7 +9,7 @@ import (
 	"microBloggingAPP/internal/config"
 	postpb "microBloggingAPP/internal/post-service/postpb"
 	socialpb "microBloggingAPP/internal/social-service/socialpb"
-	userpb "microBloggingAPP/internal/user-service/userpb"
+	userpb "microBloggingAPP/userpb"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"google.golang.org/grpc"
@@ -59,8 +59,12 @@ func main() {
 			log.Printf("  ⚠️  Failed to create user %s: %v", name, err)
 			continue
 		}
-		normalUsers = append(normalUsers, res.Id)
-		fmt.Printf("  ✓ Created %s (ID: %s)\n", name, res.Id)
+		if res == nil || res.User == nil {
+			log.Printf("  ⚠️  Invalid response for user %s: nil response or user", name)
+			continue
+		}
+		normalUsers = append(normalUsers, res.User.Id)
+		fmt.Printf("  ✓ Created %s (ID: %s)\n", name, res.User.Id)
 	}
 
 	if len(normalUsers) == 0 {
@@ -83,12 +87,16 @@ func main() {
 			log.Printf("  ⚠️  Failed to create celebrity %s: %v", name, err)
 			continue
 		}
-		celebrities = append(celebrities, res.Id)
-		fmt.Printf("  ✓ Created %s (ID: %s)\n", name, res.Id)
+		if res == nil || res.User == nil {
+			log.Printf("  ⚠️  Invalid response for celebrity %s: nil response or user", name)
+			continue
+		}
+		celebrities = append(celebrities, res.User.Id)
+		fmt.Printf("  ✓ Created %s (ID: %s)\n", name, res.User.Id)
 
 		// Automatically update follower count to 15000 (above threshold of 10000)
 		updateResult, err := userCollection.UpdateOne(ctx,
-			bson.M{"_id": res.Id},
+			bson.M{"_id": res.User.Id},
 			bson.M{"$set": bson.M{"followerCount": uint64(15000)}},
 		)
 		if err != nil {

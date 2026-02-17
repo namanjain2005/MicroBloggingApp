@@ -12,7 +12,7 @@ import (
 	socialservice "microBloggingAPP/internal/social-service"
 	socialpb "microBloggingAPP/internal/social-service/socialpb"
 	userservice "microBloggingAPP/internal/user-service"
-	userpb "microBloggingAPP/internal/user-service/userpb"
+	userpb "microBloggingAPP/userpb"
 	"net"
 	"net/http"
 	"strconv"
@@ -87,20 +87,6 @@ func main() {
 		return
 	}
 	postpb.RegisterPostServiceServer(grpcServer, postServer)
-
-	// Register Search Service
-	//searchServerConnStr := "amqp://guest:guest@localhost:5672/"
-	//UserIndexName := "user"
-	//searchServer, err := searchservice.NewServer(searchServerConnStr, UserIndexName)
-	//if err != nil {
-	//	fmt.Printf("Failed to create search service: %v\n", err)
-	//	return
-	//}
-	//err = searchServer.Subsribe()
-	//if err != nil{
-	//	log.Fatalf("Failed to Subscribe : %v",err)
-	//}
-	//searchpb.RegisterSearchServiceServer(grpcServer, searchServer)
 
 	conn, err := grpc.NewClient("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
