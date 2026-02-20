@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"microBloggingAPP/internal/post-service/postpb"
 	"microBloggingAPP/internal/search-service/searchpb"
 	"microBloggingAPP/userpb"
 	"net/http"
@@ -16,15 +17,23 @@ import (
 
 type GatewayServer struct {
 	context      context.Context
-	searchClient searchpb.SearchServiceClient // should it be a pointer ??
+	searchClient searchpb.SearchServiceClient
 	userClient   userpb.UserServiceClient
-	//grpcConn     *grpc.ClientConn do i need it ??
+	postClient   postpb.PostServiceClient
 }
 
 type UserResult struct {
 	UserID   string `json:"Id"`
 	Username string `json:"Name"`
 	Email    string `json:"Email"`
+}
+
+type PostResult struct {
+	Id       string `json:"Id"`
+	AuthorId string `json:"AuthorId"`
+	Text     string `json:"Text"`
+	ParentId string `json:"ParentId"`
+	RootId   string `json:"RootId"`
 }
 
 // SearchUsersResponse is the JSON response structure
@@ -42,7 +51,6 @@ func main() {
 	SearchGrpcAddr := "localhost:50053"
 	SearchConn, err := grpc.NewClient(SearchGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		// should it panic
 		log.Fatalf("Failed to connect to search gRPC server: %v", err)
 	}
 	defer SearchConn.Close()
@@ -50,25 +58,39 @@ func main() {
 	UserGrpcAddr := "localhost:50054"
 	UserConn, err := grpc.NewClient(UserGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		// should it panic
 		log.Fatalf("Failed to connect to User gRPC server: %v", err)
 	}
 	defer UserConn.Close()
+
+	PostGrpcAddr := "localhost:50055"
+	PostConn, err := grpc.NewClient(PostGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to Post gRPC server: %v", err)
+	}
+	defer PostConn.Close()
 
 	gateway := &GatewayServer{
 		context:      context.TODO(),
 		userClient:   userpb.NewUserServiceClient(UserConn),
 		searchClient: searchpb.NewSearchServiceClient(SearchConn),
+		postClient:   postpb.NewPostServiceClient(PostConn),
 	}
 
 	// Routes
 	http.HandleFunc("/", gateway.handleRoot)
 	http.HandleFunc("/search/users", gateway.handleSearchUsers)
 	http.HandleFunc("/users", gateway.handleUsers)
+	http.HandleFunc("/post", gateway.handlePost)
+	http.HandleFunc("/post/replies", gateway.handleGetReplies)
+	http.HandleFunc("/post/thread", gateway.handleGetThread)
+	// new post-related operations
+	http.HandleFunc("/post/like", gateway.handleLikePost)
+	http.HandleFunc("/post/unlike", gateway.handleUnlikePost)
+	http.HandleFunc("/post/delete", gateway.handleDeletePost)
 
 	httpAddr := ":8080"
 	log.Printf("HTTP Gateway listening on %s", httpAddr)
-	log.Printf("Forwarding requests to gRPC service at %s", SearchGrpcAddr)
+	log.Printf("Forwarding requests to gRPC services")
 	log.Printf("Usage: GET /search/users?q=<query>&limit=<limit>&offset=<offset>")
 
 	if err := http.ListenAndServe(httpAddr, nil); err != nil {
@@ -293,4 +315,277 @@ func (g *GatewayServer) handleSearchUsers(w http.ResponseWriter, r *http.Request
 	}
 
 	json.NewEncoder(w).Encode(result)
+}
+
+func (g *GatewayServer) handlePost(w http.ResponseWriter, r *http.Request) {
+	// /post endpoint is used for both retrieving a post (GET) and creating a post (POST)
+	switch r.Method {
+	case http.MethodGet:
+		g.handleGetPost(w, r)
+	case http.MethodPost:
+		g.handleCreatePost(w, r)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (g *GatewayServer) handleGetPost(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Missing required query parameter: 'id'", http.StatusBadRequest)
+		return
+	}
+
+	var req postpb.GetPostRequest
+	req.PostId = id
+
+	resp, err := g.postClient.GetPost(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	postResp := PostResult{
+		Id:       resp.Post.Id,
+		AuthorId: resp.Post.AuthorId,
+		Text:     resp.Post.Text,
+		ParentId: resp.Post.ParentPostId,
+		RootId:   resp.Post.RootPostId,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(postResp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// handleCreatePost accepts a JSON payload with AuthId, Text and optional ParentId.
+// ParentId may be omitted or set to "-" to indicate no parent. The handler
+// converts the payload to a gRPC CreatePostRequest and forwards it to the
+// post service.
+func (g *GatewayServer) handleCreatePost(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// decode body
+	type payload struct {
+		AuthId   string `json:"AuthId"`
+		ParentId string `json:"ParentId,omitempty"`
+		Text     string `json:"Text"`
+	}
+
+	var p payload
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&p); err != nil {
+		http.Error(w, "Invalid JSON Body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// treat dash or empty as no parent
+	if p.ParentId == "-" {
+		p.ParentId = ""
+	}
+
+	req := postpb.CreatePostRequest{
+		AuthorId:     p.AuthId,
+		Text:         p.Text,
+		Parent_PostId: p.ParentId,
+	}
+
+	resp, err := g.postClient.CreatePost(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	postResp := PostResult{
+		Id:       resp.Post.Id,
+		AuthorId: resp.Post.AuthorId,
+		Text:     resp.Post.Text,
+		ParentId: resp.Post.ParentPostId,
+		RootId:   resp.Post.RootPostId,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(postResp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// handleLikePost handles POST /post/like with JSON {"PostId":...,"UserId":...}
+func (g *GatewayServer) handleLikePost(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	type likePayload struct {
+		PostId string `json:"PostId"`
+		UserId string `json:"UserId"`
+	}
+	var p likePayload
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&p); err != nil {
+		http.Error(w, "Invalid JSON Body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	req := postpb.LikePostRequest{
+		PostId: p.PostId,
+		UserId: p.UserId,
+	}
+
+	resp, err := g.postClient.LikePost(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"Success": resp.Success})
+}
+
+// handleUnlikePost handles POST /post/unlike with JSON {"PostId":...,"UserId":...}
+func (g *GatewayServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	type unlikePayload struct {
+		PostId string `json:"PostId"`
+		UserId string `json:"UserId"`
+	}
+	var p unlikePayload
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&p); err != nil {
+		http.Error(w, "Invalid JSON Body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	req := postpb.UnlikePostRequest{
+		PostId: p.PostId,
+		UserId: p.UserId,
+	}
+
+	resp, err := g.postClient.UnlikePost(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"Success": resp.Success})
+}
+
+// handleDeletePost handles POST /post/delete with JSON {"PostId":...,"RequesterId":...}
+func (g *GatewayServer) handleDeletePost(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	type delPayload struct {
+		PostId      string `json:"PostId"`
+		RequesterId string `json:"RequesterId"`
+	}
+	var p delPayload
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&p); err != nil {
+		http.Error(w, "Invalid JSON Body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	req := postpb.DeletePostRequest{
+		PostId:     p.PostId,
+		RequesterId: p.RequesterId,
+	}
+
+	resp, err := g.postClient.DeletePost(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"Success": resp.Success})
+}
+
+func (g *GatewayServer) handleGetReplies(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Missing required query parameter: 'id'", http.StatusBadRequest)
+		return
+	}
+
+	var req postpb.GetRepliesRequest
+	req.PostId = id
+
+	resp, err := g.postClient.GetReplies(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	replies := make([]PostResult, 0, len(resp.Replies))
+	for _, p := range resp.Replies {
+		replies = append(replies, PostResult{
+			Id:       p.Id,
+			AuthorId: p.AuthorId,
+			Text:     p.Text,
+			ParentId: p.ParentPostId,
+			RootId:   p.RootPostId,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(map[string]interface{}{"Replies": replies}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (g *GatewayServer) handleGetThread(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Missing required query parameter: 'id'", http.StatusBadRequest)
+		return
+	}
+
+	var req postpb.GetThreadRequest
+	req.RootPostId = id
+
+	resp, err := g.postClient.GetThread(g.context, &req)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	posts := make([]PostResult, 0, len(resp.Posts))
+	for _, p := range resp.Posts {
+		posts = append(posts, PostResult{
+			Id:       p.Id,
+			AuthorId: p.AuthorId,
+			Text:     p.Text,
+			ParentId: p.ParentPostId,
+			RootId:   p.RootPostId,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(map[string]interface{}{"Posts": posts}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

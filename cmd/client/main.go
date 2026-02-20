@@ -340,147 +340,288 @@ func processCommand(app *client.App, cmd []string) error {
 			return fmt.Errorf("usage: create_post <author_id> <parent_post_id|-> <text>")
 		}
 
-		return runPost(app, func(c postpb.PostServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
+		payload := map[string]string{
+			"AuthId":   cmd[1],
+			"ParentId": cmd[2],
+			"Text":     cmd[3],
+		}
 
-			authorId := cmd[1]
+		CreatePostJsonData, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
 
-			parentId := cmd[2]
-			if parentId == "-" {
-				parentId = ""
-			}
+		gatewayURL := "http://localhost:8080/post"
 
-			text := strings.Join(cmd[3:], " ")
-			if text == "" {
-				return fmt.Errorf("post text cannot be empty")
-			}
+		resp, err := http.Post(gatewayURL, "application/json", bytes.NewBuffer(CreatePostJsonData))
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
 
-			res, err := c.CreatePost(ctx, &postpb.CreatePostRequest{
-				AuthorId:      authorId,
-				Text:          text,
-				Parent_PostId: parentId,
-			})
-			if err != nil {
-				return err
-			}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
 
-			fmt.Printf(
-				"Created Post: %s (Author: %s, Parent: %s)\n",
-				res.Post.Id,
-				res.Post.AuthorId,
-				res.Post.ParentPostId,
-			)
-			return nil
-		})
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ Created Post:\n")
+		fmt.Printf("  ID: %v\n", result["Id"])
+		fmt.Printf("  Text: %v\n", result["Text"])
+		fmt.Printf("  AuthorId: %v\n", result["AuthorId"])
+		fmt.Printf("  ParentId: %v\n", result["ParentId"])
+		fmt.Printf("  RootId:  %v\n", result["RootId"])
+		return nil
 
 	case "get_post":
 		if len(cmd) < 2 {
 			return fmt.Errorf("usage: get_post <post_id>")
 		}
-		return runPost(app, func(c postpb.PostServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.GetPost(ctx, &postpb.GetPostRequest{
-				PostId: cmd[1],
-			})
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Post: %s\nAuthor: %s\nText: %s\nLikes: %d\n", res.Post.Id, res.Post.AuthorId, res.Post.Text, res.Post.LikeCount)
-			return nil
-		})
+
+		gatewayURL := fmt.Sprintf("http://localhost:8080/post?id=%s", cmd[1])
+
+		resp, err := http.Get(gatewayURL)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ Created Post:\n")
+		fmt.Printf("  ID: %v\n", result["Id"])
+		fmt.Printf("  Text: %v\n", result["Text"])
+		fmt.Printf("  AuthorId: %v\n", result["AuthorId"])
+		fmt.Printf("  ParentId: %v\n", result["ParentId"])
+		fmt.Printf("  RootId:  %v\n", result["RootId"])
+		return nil
 
 	case "delete_post":
 		if len(cmd) < 3 {
 			return fmt.Errorf("usage: delete_post <post_id> <requester_id>")
 		}
-		return runPost(app, func(c postpb.PostServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			_, err := c.DeletePost(ctx, &postpb.DeletePostRequest{
-				PostId:      cmd[1],
-				RequesterId: cmd[2],
-			})
-			if err == nil {
-				fmt.Println("Post deleted successfully")
-			}
-			return err
-		})
+		payload := map[string]string{
+			"PostId":     cmd[1],
+			"RequsterId": cmd[2],
+		}
+
+		DeletePostJsonData, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		gatewayURL := "http://localhost:8080/post/delete"
+
+		resp, err := http.Post(gatewayURL, "application/json", bytes.NewBuffer(DeletePostJsonData))
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if result["Success"] == "true" {
+			// Even After Unmarshaling it is still a string ??
+			fmt.Println("Successfully deleted post")
+		} else {
+			fmt.Println("failed to delete post Successfully")
+		}
+
+		return nil
 
 	case "like_post":
 		if len(cmd) < 3 {
 			return fmt.Errorf("usage: like_post <post_id> <user_id>")
 		}
-		return runPost(app, func(c postpb.PostServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			_, err := c.LikePost(ctx, &postpb.LikePostRequest{
-				PostId: cmd[1],
-				UserId: cmd[2],
-			})
-			if err == nil {
-				fmt.Println("Post liked successfully")
-			}
-			return err
-		})
+
+		payload := map[string]string{
+			"PostId": cmd[1],
+			"UserId": cmd[2],
+		}
+
+		LikePostJsonData, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		gatewayURL := "http://localhost:8080/post/like"
+
+		resp, err := http.Post(gatewayURL, "application/json", bytes.NewBuffer(LikePostJsonData))
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if result["Success"] == "true" {
+			// Even After Unmarshaling it is still a string ??
+			fmt.Println("Successfully Liked post")
+		} else {
+			fmt.Println("failed to Like post Successfully")
+		}
+		return nil
 
 	case "unlike_post":
 		if len(cmd) < 3 {
 			return fmt.Errorf("usage: unlike_post <post_id> <user_id>")
 		}
-		return runPost(app, func(c postpb.PostServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			_, err := c.UnlikePost(ctx, &postpb.UnlikePostRequest{
-				PostId: cmd[1],
-				UserId: cmd[2],
-			})
-			if err == nil {
-				fmt.Println("Post unliked successfully")
-			}
-			return err
-		})
+
+		payload := map[string]string{
+			"PostId": cmd[1],
+			"UserId": cmd[2],
+		}
+
+		LikePostJsonData, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+
+		gatewayURL := "http://localhost:8080/post/unlike"
+
+		resp, err := http.Post(gatewayURL, "application/json", bytes.NewBuffer(LikePostJsonData))
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if result["Success"] == "true" {
+			// Even After Unmarshaling it is still a string ??
+			fmt.Println("Successfully Liked post")
+		} else {
+			fmt.Println("failed to Like post Successfully")
+		}
+		return nil
 
 	case "get_replies":
 		if len(cmd) < 2 {
 			return fmt.Errorf("usage: get_replies <post_id>")
 		}
-		return runPost(app, func(c postpb.PostServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.GetReplies(ctx, &postpb.GetRepliesRequest{
-				PostId: cmd[1],
-			})
-			if err != nil {
-				return err
+
+		gatewayURL := fmt.Sprintf("http://localhost:8080/post/replies?id=%s", cmd[1])
+
+		resp, err := http.Get(gatewayURL)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ Replies:\n")
+		if replies, ok := result["Replies"].([]interface{}); ok {
+			for _, r := range replies {
+				reply := r.(map[string]interface{})
+				fmt.Printf("  - ID: %v, Text: %v, AuthorId: %v\n", reply["Id"], reply["Text"], reply["AuthorId"])
 			}
-			fmt.Printf("Replies (%d):\n", len(res.Replies))
-			for _, r := range res.Replies {
-				fmt.Printf("  - %s: %s\n", r.Id, r.Text)
-			}
-			return nil
-		})
+		}
+		return nil
 
 	case "get_thread":
 		if len(cmd) < 2 {
 			return fmt.Errorf("usage: get_thread <root_post_id>")
 		}
-		return runPost(app, func(c postpb.PostServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.GetThread(ctx, &postpb.GetThreadRequest{
-				RootPostId: cmd[1],
-			})
-			if err != nil {
-				return err
+
+		gatewayURL := fmt.Sprintf("http://localhost:8080/post/thread?id=%s", cmd[1])
+
+		resp, err := http.Get(gatewayURL)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		fmt.Printf("✓ Thread:\n")
+		if posts, ok := result["Posts"].([]interface{}); ok {
+			for _, p := range posts {
+				post := p.(map[string]interface{})
+				fmt.Printf("  - ID: %v, Text: %v, AuthorId: %v\n", post["Id"], post["Text"], post["AuthorId"])
 			}
-			fmt.Printf("Thread (%d posts):\n", len(res.Posts))
-			for _, p := range res.Posts {
-				fmt.Printf("  - %s: %s\n", p.Id, p.Text)
-			}
-			return nil
-		})
+		}
+		return nil
 
 	case "get_timeline":
 		if len(cmd) < 2 {

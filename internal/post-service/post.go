@@ -6,7 +6,12 @@ import (
 	"errors"
 	"microBloggingAPP/internal/events"
 	pb "microBloggingAPP/internal/post-service/postpb"
+
 	//userpb "microBloggingAPP/internal/user-service/userpb" // should decouple
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,9 +19,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type Post struct {
@@ -133,6 +135,7 @@ func DeletePostReq(
 		return nil, status.Error(codes.InvalidArgument, "PostId cannot be empty")
 	}
 	if req.RequesterId == "" {
+		// TODO why do i need this ?? 
 		return nil, status.Error(codes.InvalidArgument, "RequesterId cannot be empty")
 	}
 
@@ -272,6 +275,8 @@ func GetThreadReq(
 	return &pb.GetThreadResponse{Posts: posts}, nil
 }
 
+// TODO may be rather than like and unlike
+// should be just more ToggleLike/unlike post
 func LikePostReq(
 	ctx context.Context,
 	PostCol *mongo.Collection,
@@ -281,6 +286,7 @@ func LikePostReq(
 		return nil, status.Error(codes.InvalidArgument, "PostId cannot be empty")
 	}
 	if req.UserId == "" {
+		// TODO Again do i need it ?? 
 		return nil, status.Error(codes.InvalidArgument, "UserId cannot be empty")
 	}
 
