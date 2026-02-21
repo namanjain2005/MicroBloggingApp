@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// TODO Need to decouple
+// TODO Need to decouple or may be it should be just part of userService
 type FollowServiceServer struct {
 	pb.UnimplementedFollowServiceServer
 	Client    *mongo.Client
@@ -26,7 +26,7 @@ type FollowServiceServer struct {
 	amqpChan  *amqp.Channel
 }
 
-type FollowServiceEventMsg struct{
+type FollowServiceEventMsg struct {
 	follow FollowDoc
 }
 
@@ -37,7 +37,7 @@ const (
 func NewServer(Client *mongo.Client,
 	connStr string,
 	FollowCol *mongo.Collection,
-	UserCol *mongo.Collection) (*FollowServiceServer,error) {
+	UserCol *mongo.Collection) (*FollowServiceServer, error) {
 
 	amqpConn, err := amqp.Dial(connStr)
 	if err != nil {
@@ -49,7 +49,7 @@ func NewServer(Client *mongo.Client,
 		amqpConn.Close()
 		return nil, err
 	}
-	
+
 	err = amqpChan.ExchangeDeclare(ExchangeSocialFanOut, "fanout", true, false, false, false, nil)
 	if err != nil {
 		amqpConn.Close()
@@ -60,11 +60,10 @@ func NewServer(Client *mongo.Client,
 		Client:    Client,
 		FollowCol: FollowCol,
 		UserCol:   UserCol,
-		amqpConn: amqpConn,
-		amqpChan: amqpChan,
-	},nil
+		amqpConn:  amqpConn,
+		amqpChan:  amqpChan,
+	}, nil
 }
-
 
 func (ser *FollowServiceServer) checkServer() error {
 
@@ -87,17 +86,17 @@ func (ser *FollowServiceServer) FollowUser(ctx context.Context, req *pb.FollowUs
 	if err != nil {
 		return nil, err // may want to do this before this func and assume it exist for it
 	}
-	
-	doc,err := FollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
+
+	doc, err := FollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
 
 	pubsub.PublishJSON(ctx, ser.amqpChan, ExchangeSocialFanOut, "social.follow", doc)
 
-	if err != nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
 	return &pb.FollowUserResponse{
-		Success: true,		
-	},nil
+		Success: true,
+	}, nil
 }
 
 func (ser *FollowServiceServer) UnfollowUser(ctx context.Context, req *pb.UnfollowUserRequest) (*pb.UnfollowUserResponse, error) {
@@ -105,17 +104,17 @@ func (ser *FollowServiceServer) UnfollowUser(ctx context.Context, req *pb.Unfoll
 	if err != nil {
 		return nil, err
 	}
-	
-	doc,err := UnfollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
+
+	doc, err := UnfollowUserReq(ctx, ser.UserCol, ser.Client, ser.FollowCol, req)
 
 	pubsub.PublishJSON(ctx, ser.amqpChan, ExchangeSocialFanOut, "social.unfollow", doc)
 
-	if err != nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
 	return &pb.UnfollowUserResponse{
-		Success: true,		
-	},nil
+		Success: true,
+	}, nil
 }
 
 func (ser *FollowServiceServer) GetFollowing(ctx context.Context, req *pb.GetFollowingRequest) (*pb.GetFollowingResponse, error) {

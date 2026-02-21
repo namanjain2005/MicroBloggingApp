@@ -6,6 +6,7 @@ import (
 	"log"
 	"microBloggingAPP/internal/post-service/postpb"
 	"microBloggingAPP/internal/search-service/searchpb"
+	"microBloggingAPP/internal/social-service/socialpb"
 	"microBloggingAPP/userpb"
 	"net/http"
 	"strconv"
@@ -20,6 +21,7 @@ type GatewayServer struct {
 	searchClient searchpb.SearchServiceClient
 	userClient   userpb.UserServiceClient
 	postClient   postpb.PostServiceClient
+	socialClient socialpb.FollowServiceClient
 }
 
 type UserResult struct {
@@ -69,11 +71,19 @@ func main() {
 	}
 	defer PostConn.Close()
 
+	SocialGrpcAddr := "localhost:50056"
+	SocialConn, err := grpc.NewClient(SocialGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to Social gRPC server: %v", err)
+	}
+	defer SocialConn.Close()
+
 	gateway := &GatewayServer{
 		context:      context.TODO(),
 		userClient:   userpb.NewUserServiceClient(UserConn),
 		searchClient: searchpb.NewSearchServiceClient(SearchConn),
 		postClient:   postpb.NewPostServiceClient(PostConn),
+		socialClient: socialpb.NewFollowServiceClient(SocialConn),
 	}
 
 	// Routes
@@ -87,6 +97,12 @@ func main() {
 	http.HandleFunc("/post/like", gateway.handleLikePost)
 	http.HandleFunc("/post/unlike", gateway.handleUnlikePost)
 	http.HandleFunc("/post/delete", gateway.handleDeletePost)
+
+	// social endpoints
+	http.HandleFunc("/follow", gateway.handleFollow)
+	http.HandleFunc("/unfollow", gateway.handleUnfollow)
+	http.HandleFunc("/followers", gateway.handleFollowers)
+	http.HandleFunc("/following", gateway.handleFollowing)
 
 	httpAddr := ":8080"
 	log.Printf("HTTP Gateway listening on %s", httpAddr)
@@ -203,6 +219,84 @@ func (g *GatewayServer) handleModifyBio(w http.ResponseWriter, r *http.Request) 
 	if err = json.NewEncoder(w).Encode(userResp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// --- social handlers ------------------------------------------------------
+
+func (g *GatewayServer) handleFollow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req socialpb.FollowUserRequest
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&req); err != nil {
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, err := g.socialClient.FollowUser(g.context, &req)
+	if err != nil {
+		http.Error(w, "error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (g *GatewayServer) handleUnfollow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req socialpb.UnfollowUserRequest
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&req); err != nil {
+		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, err := g.socialClient.UnfollowUser(g.context, &req)
+	if err != nil {
+		http.Error(w, "error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (g *GatewayServer) handleFollowers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	userId := r.URL.Query().Get("user_id")
+	if userId == "" {
+		http.Error(w, "missing user_id", http.StatusBadRequest)
+		return
+	}
+	resp, err := g.socialClient.GetFollowers(g.context, &socialpb.GetFollowersRequest{UserId: userId})
+	if err != nil {
+		http.Error(w, "error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (g *GatewayServer) handleFollowing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	userId := r.URL.Query().Get("user_id")
+	if userId == "" {
+		http.Error(w, "missing user_id", http.StatusBadRequest)
+		return
+	}
+	resp, err := g.socialClient.GetFollowing(g.context, &socialpb.GetFollowingRequest{UserId: userId})
+	if err != nil {
+		http.Error(w, "error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (g *GatewayServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -390,8 +484,8 @@ func (g *GatewayServer) handleCreatePost(w http.ResponseWriter, r *http.Request)
 	}
 
 	req := postpb.CreatePostRequest{
-		AuthorId:     p.AuthId,
-		Text:         p.Text,
+		AuthorId:      p.AuthId,
+		Text:          p.Text,
 		Parent_PostId: p.ParentId,
 	}
 
@@ -500,7 +594,7 @@ func (g *GatewayServer) handleDeletePost(w http.ResponseWriter, r *http.Request)
 	}
 
 	req := postpb.DeletePostRequest{
-		PostId:     p.PostId,
+		PostId:      p.PostId,
 		RequesterId: p.RequesterId,
 	}
 

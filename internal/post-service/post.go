@@ -58,20 +58,13 @@ func PostUserReq(
 	req *pb.CreatePostRequest,
 ) (*pb.CreatePostResponse, error) {
 
-	if req.AuthorId == "" { //this nil checks should happen before not here
+	if req.AuthorId == "" { // Maybe this nil checks should happen before not here
 		// TODO refactor in all services
 		return nil, status.Error(codes.InvalidArgument, "AuthorId cannot be empty")
 	}
 	if req.Text == "" {
 		return nil, status.Error(codes.InvalidArgument, "Post Text cannot be empty")
 	}
-
-	// var user userpb.User
-	// userFilter := bson.M{"_id": req.AuthorId}
-	// err := UserCol.FindOne(ctx, userFilter).Decode(&user) // i know this wrong have to decouple may be even struct with id would be even fine but it needs better fix
-	// if err != nil {
-	// 	return nil, status.Errorf(codes.Internal, "%v", err)
-	// }
 
 	postId := uuid.NewString()
 	var rootId string
@@ -135,7 +128,7 @@ func DeletePostReq(
 		return nil, status.Error(codes.InvalidArgument, "PostId cannot be empty")
 	}
 	if req.RequesterId == "" {
-		// TODO why do i need this ?? 
+		// TODO why do i need this ??
 		return nil, status.Error(codes.InvalidArgument, "RequesterId cannot be empty")
 	}
 
@@ -277,6 +270,10 @@ func GetThreadReq(
 
 // TODO may be rather than like and unlike
 // should be just more ToggleLike/unlike post
+
+// TODO this should have a column of which is post following db which is indexed by users
+// may i would do this when i am trying to do more complex recommendation
+
 func LikePostReq(
 	ctx context.Context,
 	PostCol *mongo.Collection,
@@ -286,7 +283,7 @@ func LikePostReq(
 		return nil, status.Error(codes.InvalidArgument, "PostId cannot be empty")
 	}
 	if req.UserId == "" {
-		// TODO Again do i need it ?? 
+		// TODO Again do i need it ??
 		return nil, status.Error(codes.InvalidArgument, "UserId cannot be empty")
 	}
 

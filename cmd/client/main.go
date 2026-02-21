@@ -10,7 +10,6 @@ import (
 	"microBloggingAPP/internal/client"
 	"microBloggingAPP/internal/config"
 	"microBloggingAPP/internal/post-service/postpb"
-	"microBloggingAPP/internal/social-service/socialpb"
 	"net/http"
 	"os"
 	"strconv"
@@ -30,7 +29,7 @@ func main() {
 	fmt.Println("Connected to", addr)
 	fmt.Println("Commands: follow, unfollow, followers, following, repeat")
 	fmt.Println("User Commands: create_user, get_user, get_user_by_email, modify_bio")
-	fmt.Println("Post Commands: create_post, get_post, delete_post, like_post, unlike_post, get_replies, get_thread, get_timeline")
+	fmt.Println("Post Commands: create_post [parent optional], get_post, delete_post, like_post, unlike_post, get_replies, get_thread, get_timeline")
 	fmt.Println("Search Commands: search_user <query>")
 	fmt.Println("Other: exit")
 
@@ -65,77 +64,116 @@ func processCommand(app *client.App, cmd []string) error {
 		if len(cmd) < 3 {
 			return fmt.Errorf("usage: follow <follower_id> <followee_id>")
 		}
-		return run(app, func(c socialpb.FollowServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			_, err := c.FollowUser(ctx, &socialpb.FollowUserRequest{
-				FollowerId: cmd[1],
-				FolloweeId: cmd[2],
-			})
-			if err == nil {
-				fmt.Println("Success")
-			}
+		payload := map[string]string{
+			"follower_id": cmd[1],
+			"followee_id": cmd[2],
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
 			return err
-		})
+		}
+		resp, err := http.Post("http://localhost:8080/follow", "application/json", bytes.NewReader(body))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			b, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("server error: %s", string(b))
+		}
+		fmt.Println("Success")
+		return nil
 
 	case "unfollow":
 		if len(cmd) < 3 {
 			return fmt.Errorf("usage: unfollow <follower_id> <followee_id>")
 		}
-		return run(app, func(c socialpb.FollowServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			_, err := c.UnfollowUser(ctx, &socialpb.UnfollowUserRequest{
-				FollowerId: cmd[1],
-				FolloweeId: cmd[2],
-			})
-			if err == nil {
-				fmt.Println("Success")
-			}
+		payload := map[string]string{
+			"follower_id": cmd[1],
+			"followee_id": cmd[2],
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
 			return err
-		})
+		}
+		resp, err := http.Post("http://localhost:8080/unfollow", "application/json", bytes.NewReader(body))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			b, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("server error: %s", string(b))
+		}
+		fmt.Println("Success")
+		return nil
 
 	case "followers":
 		if len(cmd) < 2 {
 			return fmt.Errorf("usage: followers <user_id>")
 		}
-		return run(app, func(c socialpb.FollowServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.GetFollowers(ctx, &socialpb.GetFollowersRequest{
-				UserId: cmd[1],
-			})
-			if err != nil {
-				return err
-			}
-			var ids []string
-			for _, f := range res.Followers {
-				ids = append(ids, f.FollowerId)
-			}
-			fmt.Printf("Followers: %v\n", ids)
-			return nil
-		})
+		url := "http://localhost:8080/followers?user_id=" + cmd[1]
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error: %s", string(bodyBytes))
+		}
+	// define the expected response structure with timestamp field as generic
+		var out struct {
+			Followers []struct {
+				FollowerId string      `json:"follower_id"`
+				FollowedAt interface{} `json:"followed_at"`
+			} `json:"followers"`
+		}
+		if err := json.Unmarshal(bodyBytes, &out); err != nil {
+			return err
+		}
+		var ids []string
+		for _, f := range out.Followers {
+			ids = append(ids, f.FollowerId)
+		}
+		fmt.Printf("Followers: %v\n", ids)
+		return nil
 
 	case "following":
 		if len(cmd) < 2 {
 			return fmt.Errorf("usage: following <user_id>")
 		}
-		return run(app, func(c socialpb.FollowServiceClient) error {
-			ctx, cancel := client.Ctx()
-			defer cancel()
-			res, err := c.GetFollowing(ctx, &socialpb.GetFollowingRequest{
-				UserId: cmd[1],
-			})
-			if err != nil {
-				return err
-			}
-			var ids []string
-			for _, f := range res.Following {
-				ids = append(ids, f.FolloweeId)
-			}
-			fmt.Printf("Following: %v\n", ids)
-			return nil
-		})
+		url := "http://localhost:8080/following?user_id=" + cmd[1]
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server error: %s", string(bodyBytes))
+		}
+	var out struct {
+			Following []struct {
+				FolloweeId string      `json:"followee_id"`
+				FollowedAt interface{} `json:"followed_at"`
+			} `json:"following"`
+		}
+		if err := json.Unmarshal(bodyBytes, &out); err != nil {
+			return err
+		}
+		var ids []string
+		for _, f := range out.Following {
+			ids = append(ids, f.FolloweeId)
+		}
+		fmt.Printf("Following: %v\n", ids)
+		return nil
 
 	case "repeat":
 		if len(cmd) < 3 {
@@ -336,14 +374,31 @@ func processCommand(app *client.App, cmd []string) error {
 	// 	})
 
 	case "create_post":
-		if len(cmd) < 4 {
-			return fmt.Errorf("usage: create_post <author_id> <parent_post_id|-> <text>")
+		// allow either: create_post <author> <text...>
+		// or: create_post <author> <parent_id|-> <text...>
+		if len(cmd) < 3 {
+			return fmt.Errorf("usage: create_post <author_id> <text> or create_post <author_id> <parent_post_id|-> <text>")
 		}
 
+		author := cmd[1]
+		var parent string
+		var textParts []string
+		if len(cmd) == 3 {
+			parent = ""
+			textParts = []string{cmd[2]}
+		} else {
+			parent = cmd[2]
+			if parent == "-" {
+				parent = ""
+			}
+			textParts = cmd[3:]
+		}
+		text := strings.Join(textParts, " ")
+
 		payload := map[string]string{
-			"AuthId":   cmd[1],
-			"ParentId": cmd[2],
-			"Text":     cmd[3],
+			"AuthId":   author,
+			"ParentId": parent,
+			"Text":     text,
 		}
 
 		CreatePostJsonData, err := json.Marshal(payload)
@@ -498,11 +553,10 @@ func processCommand(app *client.App, cmd []string) error {
 			return fmt.Errorf("failed to parse response: %w", err)
 		}
 
-		if result["Success"] == "true" {
-			// Even After Unmarshaling it is still a string ??
-			fmt.Println("Successfully Liked post")
+		if success, ok := result["Success"].(bool); ok && success {
+			fmt.Println("Successfully liked post")
 		} else {
-			fmt.Println("failed to Like post Successfully")
+			fmt.Println("failed to like post")
 		}
 		return nil
 
@@ -543,11 +597,10 @@ func processCommand(app *client.App, cmd []string) error {
 			return fmt.Errorf("failed to parse response: %w", err)
 		}
 
-		if result["Success"] == "true" {
-			// Even After Unmarshaling it is still a string ??
-			fmt.Println("Successfully Liked post")
+		if success, ok := result["Success"].(bool); ok && success {
+			fmt.Println("Successfully unliked post")
 		} else {
-			fmt.Println("failed to Like post Successfully")
+			fmt.Println("failed to unlike post")
 		}
 		return nil
 
@@ -733,16 +786,6 @@ func processCommand(app *client.App, cmd []string) error {
 
 	default:
 		return fmt.Errorf("unknown command: %s", cmd[0])
-	}
-	return nil
-}
-
-func run(app *client.App, fn func(socialpb.FollowServiceClient) error) error {
-	if err := app.Ensure(); err != nil {
-		return fmt.Errorf("connection error: %w", err)
-	}
-	if err := fn(app.FollowClient()); err != nil {
-		return fmt.Errorf("rpc error: %w", err)
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package socialservice
 
 import (
 	"context"
+	"log"
 	// "fmt"
 	pb "microBloggingAPP/internal/social-service/socialpb"
 	// "strconv"
@@ -73,10 +74,10 @@ func FollowUserReq(
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
 
-		if oid,ok := res.InsertedID.(string);ok{
+		if oid, ok := res.InsertedID.(string); ok {
 			followDoc.Id = oid
 		}
-		
+
 		if _, err = UserCol.UpdateByID(
 			sc,
 			req.FolloweeId,
@@ -84,7 +85,7 @@ func FollowUserReq(
 		); err != nil {
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
-		return nil,nil
+		return nil, nil
 	})
 
 	if err != nil {
@@ -94,7 +95,7 @@ func FollowUserReq(
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 
-	return followDoc,nil
+	return followDoc, nil
 }
 
 func UnfollowUserReq(
@@ -121,13 +122,13 @@ func UnfollowUserReq(
 		return nil, status.Errorf(codes.Internal, "start session: %v", err)
 	}
 	defer session.EndSession(ctx)
-	
+
 	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (any, error) {
 
 		// err := followsCol.DeleteOne(sc, followFilter)
 		err := followsCol.FindOneAndDelete(ctx, followFilter).Decode(&deleted)
-		if err == mongo.ErrNoDocuments{
-			return nil,nil
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
 		}
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "delete follow: %v", err)
@@ -207,6 +208,10 @@ func GetFollowingReq(
 		return nil, status.Error(codes.InvalidArgument, "UserId cannot be empty")
 	}
 
+	// guard against nil pagination
+	if req.Pagination == nil {
+		req.Pagination = &pb.Pagination{}
+	}
 	limit := int64(req.Pagination.Limit)
 	if limit == 0 {
 		limit = 20 // Default limit
@@ -214,6 +219,10 @@ func GetFollowingReq(
 
 	filter := bson.M{
 		"followerId": req.UserId,
+	}
+	// diagnostic: count before querying
+	if cnt, err := followsCol.CountDocuments(ctx, filter); err == nil {
+		log.Printf("GetFollowingReq filter=%v count=%d", filter, cnt)
 	}
 
 	if req.Pagination.Cursor != "" {
@@ -244,6 +253,7 @@ func GetFollowingReq(
 		})
 		lastFollowID = followDoc.Id
 	}
+	log.Printf("GetFollowingReq returned %d items", len(following))
 
 	if err := cursor.Err(); err != nil {
 		return nil, status.Errorf(codes.Internal, "cursor error: %v", err)
@@ -272,6 +282,10 @@ func GetFollowersReq(
 		return nil, status.Error(codes.InvalidArgument, "UserId cannot be empty")
 	}
 
+	// guard against nil pagination
+	if req.Pagination == nil {
+		req.Pagination = &pb.Pagination{}
+	}
 	limit := int64(req.Pagination.Limit)
 	if limit == 0 {
 		limit = 20 // Default limit
@@ -279,6 +293,10 @@ func GetFollowersReq(
 
 	filter := bson.M{
 		"followeeId": req.UserId,
+	}
+	// diagnostic: count before querying
+	if cnt, err := followsCol.CountDocuments(ctx, filter); err == nil {
+		log.Printf("GetFollowersReq filter=%v count=%d", filter, cnt)
 	}
 
 	if req.Pagination.Cursor != "" {
@@ -310,6 +328,7 @@ func GetFollowersReq(
 		})
 		lastFollowID = followDoc.Id
 	}
+	log.Printf("GetFollowersReq returned %d items", len(followersList))
 
 	if err := cursor.Err(); err != nil {
 		return nil, status.Errorf(codes.Internal, "cursor error: %v", err)
