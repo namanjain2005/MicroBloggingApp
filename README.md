@@ -97,19 +97,6 @@ If you want a consolidated timing report, I can add a small reporter that parses
 - Timeline consumer and fanout components log chunk origin (Redis vs MongoDB) — useful for validating hybrid-fanout behavior.
 - Use the included test-fanout script in `cmd/test/test-fanout` for end-to-end timeline validation.
 
-## Security & Incident Guidance
-
-- If secrets were ever committed, rotate them immediately (credentials, DB users, API keys).
-- After rewriting history to remove secrets, communicate with collaborators to re-clone the repository. Example workflow:
-
-```bash
-# After you force-push cleaned history
-git fetch origin --prune
-# Everyone should reclone to avoid old refs
-git clone <repo-url>
-```
-
-- Keep `.env` in `.gitignore`. Use credential managers or environment-specific secret stores in production.
 
 ## Where to look in the code
 
@@ -118,13 +105,4 @@ git clone <repo-url>
 - CLI and binaries: `cmd/*` (server, client, services, test helpers).
 - Shared utilities: `internal/config`, `pubsub`, and other helper packages.
 
-## Contributing & Next steps
-
-- If you'd like, I can:
-	- Add a compact architecture diagram to `README.md`.
-	- Add a `docs/Security.md` with step-by-step incident response and rotation commands.
-	- Produce a `run-local.sh` that orchestrates starting services in the correct order for development.
-
----
-
-If you want, I will now add a short Security section to the top-level `README.md` (with the incident-response checklist), and produce a small `run-local.sh` script that starts services in recommended order. Which should I do next? 
+ 
