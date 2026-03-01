@@ -13,7 +13,7 @@ import (
 func TestPostUserReq_Validation(t *testing.T) {
 	ctx := context.TODO()
 
-	t.Run("EmptyAuthorId", func(t *testing.T) {
+	runTimed(t, "PostUserReq_Validation_EmptyAuthorId", func(t *testing.T) {
 		req := &pb.CreatePostRequest{AuthorId: "", Text: "Hello"}
 		_, err := PostUserReq(ctx, nil, nil, req)
 		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
@@ -21,7 +21,7 @@ func TestPostUserReq_Validation(t *testing.T) {
 		}
 	})
 
-	t.Run("EmptyText", func(t *testing.T) {
+	runTimed(t, "PostUserReq_Validation_EmptyText", func(t *testing.T) {
 		req := &pb.CreatePostRequest{AuthorId: "user1", Text: ""}
 		_, err := PostUserReq(ctx, nil, nil, req)
 		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
@@ -32,9 +32,7 @@ func TestPostUserReq_Validation(t *testing.T) {
 
 func TestCreatePost_ServerValidation(t *testing.T) {
 	ctx := context.TODO()
-
-	t.Run("NilRequestAndNilCollection", func(t *testing.T) {
-		// When both postCol and req are nil, col check fires first
+	runTimed(t, "CreatePost_ServerValidation_NilRequestAndNilCollection", func(t *testing.T) {
 		srv := &PostServiceServer{postCol: nil}
 		_, err := srv.CreatePost(ctx, nil)
 		if err == nil || err.Error() != "database collection not initialized" {
@@ -42,7 +40,7 @@ func TestCreatePost_ServerValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("NilCollection", func(t *testing.T) {
+	runTimed(t, "CreatePost_ServerValidation_NilCollection", func(t *testing.T) {
 		srv := &PostServiceServer{postCol: nil}
 		req := &pb.CreatePostRequest{AuthorId: "user1", Text: "hello"}
 		_, err := srv.CreatePost(ctx, req)
@@ -54,9 +52,7 @@ func TestCreatePost_ServerValidation(t *testing.T) {
 
 func TestGetPost_ServerValidation(t *testing.T) {
 	ctx := context.TODO()
-
-	t.Run("NilRequestAndNilCollection", func(t *testing.T) {
-		// When both postCol and req are nil, col check fires first
+	runTimed(t, "GetPost_ServerValidation_NilRequestAndNilCollection", func(t *testing.T) {
 		srv := &PostServiceServer{postCol: nil}
 		_, err := srv.GetPost(ctx, nil)
 		if err == nil || err.Error() != "database collection not initialized" {
@@ -64,12 +60,24 @@ func TestGetPost_ServerValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("NilCollection", func(t *testing.T) {
+	runTimed(t, "GetPost_ServerValidation_NilCollection", func(t *testing.T) {
 		srv := &PostServiceServer{postCol: nil}
 		req := &pb.GetPostRequest{PostId: "post1"}
 		_, err := srv.GetPost(ctx, req)
 		if err == nil || err.Error() != "database collection not initialized" {
 			t.Errorf("expected 'database collection not initialized', got %v", err)
+		}
+	})
+}
+
+func TestPostService(t *testing.T) {
+	ctx := context.TODO()
+
+	runTimed(t, "PostUserReq_BothEmpty", func(t *testing.T) {
+		req := &pb.CreatePostRequest{AuthorId: "", Text: ""}
+		_, err := PostUserReq(ctx, nil, nil, req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", err)
 		}
 	})
 }

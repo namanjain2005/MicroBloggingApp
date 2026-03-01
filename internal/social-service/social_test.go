@@ -90,3 +90,66 @@ func TestUnfollowUserReq_Validation(t *testing.T) {
 		}
 	})
 }
+func TestSocialService(t *testing.T) {
+	ctx := context.TODO()
+
+	runTimed(t, "FollowUserReq_Validation_EmptyIds", func(t *testing.T) {
+		req := &pb.FollowUserRequest{FollowerId: "", FolloweeId: ""}
+		_, err := FollowUserReq(ctx, nil, nil, nil, req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", err)
+		}
+	})
+
+	runTimed(t, "FollowUserReq_Validation_FollowSelf", func(t *testing.T) {
+		req := &pb.FollowUserRequest{FollowerId: "user1", FolloweeId: "user1"}
+		_, err := FollowUserReq(ctx, nil, nil, nil, req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument || s.Message() != "cannot follow yourself" {
+			t.Errorf("expected 'cannot follow yourself', got %v", err)
+		}
+	})
+
+	runTimed(t, "FollowUser_ServerValidation_NilCollections", func(t *testing.T) {
+		srv := &FollowServiceServer{Client: nil, FollowCol: nil, UserCol: nil}
+		req := &pb.FollowUserRequest{FollowerId: "user1", FolloweeId: "user2"}
+		_, err := srv.FollowUser(ctx, req)
+		if err == nil {
+			t.Fatal("expected error from nil collections")
+		}
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.NotFound {
+			t.Errorf("expected NotFound from checkServer, got %v", err)
+		}
+	})
+
+	runTimed(t, "GetFollowersReq_ServerValidation_NilCollections", func(t *testing.T) {
+		srv := &FollowServiceServer{Client: nil, FollowCol: nil, UserCol: nil}
+		req := &pb.GetFollowersRequest{UserId: "user1"}
+		_, err := srv.GetFollowers(ctx, req)
+		if err == nil {
+			t.Fatal("expected error from nil collections")
+		}
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.NotFound {
+			t.Errorf("expected NotFound from checkServer, got %v", err)
+		}
+	})
+
+	runTimed(t, "GetFollowingReq_ServerValidation_NilCollections", func(t *testing.T) {
+		srv := &FollowServiceServer{Client: nil, FollowCol: nil, UserCol: nil}
+		req := &pb.GetFollowingRequest{UserId: "user1"}
+		_, err := srv.GetFollowing(ctx, req)
+		if err == nil {
+			t.Fatal("expected error from nil collections")
+		}
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.NotFound {
+			t.Errorf("expected NotFound from checkServer, got %v", err)
+		}
+	})
+
+	runTimed(t, "UnfollowUserReq_Validation_EmptyIds", func(t *testing.T) {
+		req := &pb.UnfollowUserRequest{FollowerId: "", FolloweeId: ""}
+		_, err := UnfollowUserReq(ctx, nil, nil, nil, req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", err)
+		}
+	})
+}
