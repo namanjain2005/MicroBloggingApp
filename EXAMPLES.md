@@ -219,7 +219,7 @@ make test     # Run tests
 make run-server
 
 # Terminal 2: Create user
-./cmd/client/client -cmd=create -name="Dev User" -password="dev123"
+./cmd/client/client -cmd=create -name="Dev User" -password="<example-password>"
 
 # Terminal 2: Get user
 ./cmd/client/client -cmd=get -id="8"
@@ -231,7 +231,7 @@ make run-server
 docker-compose up -d
 
 # Create user
-GRPC_SERVER=localhost:50051 ./cmd/client/client -cmd=create -name="Docker User" -password="docker123"
+GRPC_SERVER=localhost:50051 ./cmd/client/client -cmd=create -name="Docker User" -password="<example-password>"
 
 # Verify
 GRPC_SERVER=localhost:50051 ./cmd/client/client -cmd=get -id="6"
@@ -246,8 +246,8 @@ GRPC_PORT=50051 ./server
 GRPC_PORT=50052 ./server
 
 # Terminal 3: Client operations
-./client -server=localhost:50051 -cmd=create -name="Server1 User" -password="pass1"
-./client -server=localhost:50052 -cmd=create -name="Server2 User" -password="pass2"
+./client -server=localhost:50051 -cmd=create -name="Server1 User" -password="<example-password>"
+./client -server=localhost:50052 -cmd=create -name="Server2 User" -password="<example-password>"
 ```
 
 ### Scenario 4: Load Testing
@@ -257,7 +257,7 @@ GRPC_PORT=50052 ./server
 
 echo "Creating 100 users..."
 for i in {1..100}; do
-  ./client -cmd=create -name="User$i" -password="password$i" &
+  ./client -cmd=create -name="User$i" -password="<example-password>" &
   
   # Limit concurrent requests
   if [ $((i % 10)) -eq 0 ]; then
@@ -275,13 +275,13 @@ echo "Load test complete!"
 ### Connection Refused
 ```bash
 # Error: connection refused
-./client -cmd=create -name="Test" -password="test"
+./client -cmd=create -name="Test" -password="<example-password>"
 
 # Solution: Check server is running
 make run-server
 
 # Or connect to specific server
-./client -server=192.168.1.100:50051 -cmd=create -name="Test" -password="test"
+./client -server=192.168.1.100:50051 -cmd=create -name="Test" -password="<example-password>"
 ```
 
 ### Database Connection Failed
@@ -310,7 +310,7 @@ MONGO_URI=mongodb://localhost:27017 ./server
 ./client -cmd=create -name="Test" -password=""
 
 # Solution: Provide password
-./client -cmd=create -name="Test" -password="validpass123"
+./client -cmd=create -name="Test" -password="<example-password>"
 ```
 
 ## Performance Testing
@@ -318,10 +318,10 @@ MONGO_URI=mongodb://localhost:27017 ./server
 ### Measure Response Time
 ```bash
 # Unix/Linux/macOS
-time ./client -cmd=create -name="Perf Test" -password="test"
+time ./client -cmd=create -name="Perf Test" -password="<example-password>"
 
 # Windows PowerShell
-Measure-Command { ./client.exe -cmd=create -name="Perf Test" -password="test" }
+Measure-Command { ./client.exe -cmd=create -name="Perf Test" -password="<example-password>" }
 ```
 
 ### Concurrent Users
@@ -334,7 +334,7 @@ iterations=$2
 
 for ((i=1; i<=iterations; i++)); do
   for ((j=1; j<=concurrent_count; j++)); do
-    ./client -cmd=create -name="User_${i}_${j}" -password="pass" &
+    ./client -cmd=create -name="User_${i}_${j}" -password="<example-password>" &
   done
   wait
   echo "Iteration $i completed"
