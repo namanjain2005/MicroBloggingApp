@@ -1,90 +1,130 @@
-# Micro Blogging App - User Service
+# MicroBlogging App — Services & Features
 
-## Overview
+This repository is a compact microservice example implementing a small micro-blogging platform. It is intentionally minimal and focused on demonstrating service boundaries, event-driven timeline behavior, and gRPC-based RPCs.
 
-This is a gRPC-based user service for a micro blogging application. It provides user creation and retrieval functionality with MongoDB as the backend database.
+This README documents each microservice, the features they provide, configuration and run instructions, testing and diagnostics, and security recommendations.
 
-## Components
+**Repository layout (top-level)**
+- `cmd/` — entrypoints for service binaries (server, client, gateway, service mains)
+- `internal/` — service implementations and shared packages (`config`, `pubsub`, service packages)
+- `*.md` — documentation and examples
+- `.env.example` — example environment variables (do not commit `.env`)
 
-- **Server**: gRPC server that handles user operations
-- **Client**: Command-line client to interact with the server
-- **Config**: Centralized configuration management via environment variables
-- **User Service**: Core business logic for user operations
+## Microservices and responsibilities
 
-## Prerequisites
+- **User Service** (`internal/user-service`, `cmd/user-service`) — user CRUD and profile management. Exposes gRPC RPCs for creating users, fetching user profiles, and basic user metadata used by other services.
 
-- Go 1.25.2 or higher
-- MongoDB instance running (local or remote)
-- gRPC and Protocol Buffers dependencies (included in go.mod)
+- **Post Service** (`internal/post-service`, `cmd/post-service`) — handles creating posts and persisting them to MongoDB. Produces post events used by downstream services (timeline, search).
+
+- **Social Service** (`internal/social-service`, `cmd/social-service`) — manages social graph operations (follow/unfollow) and follower counts. This service is used to decide fanout behavior and to expose social-related RPCs.
+
+- **Timeline Consumer** (`timeline-consumer`, `internal/timeline-consumer`) — consumes post/fanout events and assembles user timelines. Implements hybrid fanout: writes recent posts to Redis for fast access and falls back to MongoDB for large/celebrity fanout.
+
+- **Search Service** (`internal/search-service`, `cmd/search-service`) — indexes posts and provides search APIs (text search over posts). Uses protobuf-generated searchpb interfaces.
+
+- **Gateway / Server** (`cmd/gateway`, `cmd/server`) — central process wrapping and wiring services together for local development. May provide a combined gRPC entry or an HTTP gateway depending on the build.
+
+- **CLI Client** (`cmd/client`) — command-line client for basic operations (create user, create post, fetch timeline) used in examples and smoke tests.
+
+Each service has its own package under `internal/` with protobuf (`*.proto`) and generated `*_pb.go` files where applicable.
+
+## Key Features
+
+- gRPC-first design: all primary RPCs are defined in `.proto` files alongside generated Go code in `*pb/` packages.
+- Event-driven timeline: post creation emits events that are consumed by `timeline-consumer` to implement hybrid fanout (Redis + MongoDB chunks).
+- Simple CLI tooling: `cmd/client` for quick manual tests and smoke checks.
+- Per-test timing helpers: tests include `runTimed` subtests which log durations (ms) when running `go test -v`.
 
 ## Configuration
 
-Configuration is managed through environment variables. Create a `.env` file or set the following variables:
+Configuration is via environment variables. Copy `.env.example` to `.env` for local development and set secrets there. Important vars:
 
-*** Begin README update ***
+```
+MONGO_URI             # e.g. mongodb://localhost:27017
+MONGO_DB_NAME         # e.g. microBlogging
+MONGO_COLLECTION_NAME # e.g. users
+GRPC_PORT             # default 50051
+GRPC_HOST             # default 0.0.0.0
+APP_ENV               # development|staging|production
+LOG_LEVEL             # debug|info|warn|error
+```
 
-# MicroBlogging App
+Never commit `.env` to the repository. Use `.env.example` as a template.
 
-This repository contains multiple small services (user, post, social, search...) used by a sample micro-blogging application. The README below focuses on how to build, run and test the code locally (Linux/macOS and Windows).
+## Build & Run (local)
 
-Prerequisites
-- Go (1.17+) installed and on your PATH
-- MongoDB running or reachable via `MONGO_URI`
-
-Build & run (Linux / macOS)
+Build all service binaries:
 
 ```bash
-# Build server and client
-cd cmd/server && go build -o server && cd -
-cd cmd/client && go build -o client && cd -
-
-# Start server in background
-./cmd/server/server &
-
-# Use the client
-./cmd/client -cmd=create -name="Alice" -password="<your-password>"
+cd $(git rev-parse --show-toplevel)
+go build ./cmd/...
 ```
 
-Build & run (Windows / PowerShell)
+Run a single service (example: user service):
 
-```powershell
-cd cmd\server; go build -o server.exe; cd ..\..
-cd cmd\client; go build -o client.exe; cd ..\..
-
-start cmd\server\server.exe
-.
+```bash
+MONGO_URI=mongodb://localhost:27017 GRPC_PORT=50051 ./cmd/user-service/user-service
 ```
 
-Helper scripts
-- `quickstart.sh` / `quickstart.bat` — build common binaries used during development.
-- `run-all.sh` / `run-all.bat` — start the server and timeline consumer (requires built binaries).
-- `run-test.sh` / `run-test.bat` — run the repository tests (see below).
+Suggested local development sequence (simplified):
 
-Testing and per-test timings
+1. Start MongoDB (local or Docker).
+2. Start `timeline-consumer` (it needs to listen for events).
+3. Start `post-service`, `social-service`, and `user-service`.
+4. Run `cmd/client` to create users/posts and observe timeline behavior.
 
-Each service's tests include a small `runTimed` helper that logs subtest durations in milliseconds via `t.Logf(...)`. To see the per-test timings, run tests with the `-v` flag:
+For a quick local stack, the included `docker-compose.yml` can start MongoDB alongside services that are containerized.
+
+## Testing
+
+Run tests with verbose timing output:
 
 ```bash
 go test -v ./...
 ```
 
-You will see lines like:
-
-```
-user_test.go:16: duration: 0.709ms
-```
-
-If you prefer machine-readable output, you can use:
+To get machine-readable per-test timing output, use `go test -json` and post-process with `jq`:
 
 ```bash
 go test -json ./... | jq -r 'select(.Test) | "\(.Package) \(.Test) \(.Elapsed)"'
 ```
 
-Notes
-- Tests are intentionally fast; many assertions will show `0.000ms`. For demonstrations you can aggregate operations inside a test, but avoid adding sleeps in CI.
-- This README now instructs using `run-test.sh` / `run-test.bat` to run the full test suite across packages.
+If you want a consolidated timing report, I can add a small reporter that parses the JSON output and produces CSV/JSON summaries.
 
-If you want a per-test timing CSV/JSON report, I can add a small reporter that parses `go test -json` and writes a summary.
+## Observability & Debugging
 
-*** End README update ***
-2026/01/14 10:30:00 MongoDB URI: mongodb://localhost:27017
+- Logs: controlled by `LOG_LEVEL`; set to `debug` for verbose output.
+- Timeline consumer and fanout components log chunk origin (Redis vs MongoDB) — useful for validating hybrid-fanout behavior.
+- Use the included test-fanout script in `cmd/test/test-fanout` for end-to-end timeline validation.
+
+## Security & Incident Guidance
+
+- If secrets were ever committed, rotate them immediately (credentials, DB users, API keys).
+- After rewriting history to remove secrets, communicate with collaborators to re-clone the repository. Example workflow:
+
+```bash
+# After you force-push cleaned history
+git fetch origin --prune
+# Everyone should reclone to avoid old refs
+git clone <repo-url>
+```
+
+- Keep `.env` in `.gitignore`. Use credential managers or environment-specific secret stores in production.
+
+## Where to look in the code
+
+- Service implementations: `internal/*-service` (e.g. `internal/user-service`, `internal/post-service`, `internal/social-service`, `internal/search-service`).
+- Protobufs and generated code: `internal/*/ *pb` and the top-level `postpb/`, `socialpb/`, `userpb/` folders.
+- CLI and binaries: `cmd/*` (server, client, services, test helpers).
+- Shared utilities: `internal/config`, `pubsub`, and other helper packages.
+
+## Contributing & Next steps
+
+- If you'd like, I can:
+	- Add a compact architecture diagram to `README.md`.
+	- Add a `docs/Security.md` with step-by-step incident response and rotation commands.
+	- Produce a `run-local.sh` that orchestrates starting services in the correct order for development.
+
+---
+
+If you want, I will now add a short Security section to the top-level `README.md` (with the incident-response checklist), and produce a small `run-local.sh` script that starts services in recommended order. Which should I do next? 
