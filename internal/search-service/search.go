@@ -14,14 +14,17 @@ import (
 // TODO if elastic search is not good enough implement some sort of custom ml based thingy
 
 // NOTE note for now i have changed config files of elasticsearch to disable security (GPT Careful)
-func SearchUser(ctx context.Context,es *elasticsearch.Client,req *pb.SearchUsersRequest)(*pb.SearchUsersResponse,error) {
+func SearchUser(ctx context.Context, es *elasticsearch.Client, req *pb.SearchUsersRequest) (*pb.SearchUsersResponse, error) {
+	if es == nil {
+		return nil, fmt.Errorf("elasticsearch client not initialized")
+	}
 	limit := req.Pagination.Limit
-	if limit <=0 {
+	if limit <= 0 {
 		limit = 10
 	}
 
 	offset := req.Pagination.Offset
-	if offset <=0 {
+	if offset <= 0 {
 		offset = 0
 	}
 
@@ -58,21 +61,21 @@ func SearchUser(ctx context.Context,es *elasticsearch.Client,req *pb.SearchUsers
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, err
 	}
-	res,err := es.Search(
+	res, err := es.Search(
 		es.Search.WithContext(ctx),
 		es.Search.WithIndex("user"),
 		es.Search.WithBody(&buf),
 		es.Search.WithTrackTotalHits(true),
 	)
-	if err!=nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
 	defer res.Body.Close()
 
-	if res.IsError(){
-		return nil,fmt.Errorf("Elastic Search : %v",res.String())
+	if res.IsError() {
+		return nil, fmt.Errorf("Elastic Search : %v", res.String())
 	}
-	
+
 	var esResp struct {
 		Hits struct {
 			Total struct {
@@ -102,9 +105,9 @@ func SearchUser(ctx context.Context,es *elasticsearch.Client,req *pb.SearchUsers
 	for _, hit := range esResp.Hits.Hits {
 		src := hit.Source
 		users = append(users, &pb.User{
-			UserId: src.Id,
+			UserId:   src.Id,
 			Username: src.Name,
-			Email: src.Email,
+			Email:    src.Email,
 		})
 	}
 
@@ -112,9 +115,8 @@ func SearchUser(ctx context.Context,es *elasticsearch.Client,req *pb.SearchUsers
 		Total: uint64(esResp.Hits.Total.Value),
 	}
 
-
 	return &pb.SearchUsersResponse{
 		Users: users,
-		Meta: meta,
+		Meta:  meta,
 	}, nil
 }

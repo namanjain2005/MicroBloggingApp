@@ -58,8 +58,7 @@ func PostUserReq(
 	req *pb.CreatePostRequest,
 ) (*pb.CreatePostResponse, error) {
 
-	if req.AuthorId == "" { // Maybe this nil checks should happen before not here
-		// TODO refactor in all services
+	if req.AuthorId == "" {
 		return nil, status.Error(codes.InvalidArgument, "AuthorId cannot be empty")
 	}
 	if req.Text == "" {

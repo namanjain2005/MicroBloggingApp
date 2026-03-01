@@ -41,16 +41,12 @@ func HashPassword(password string) string {
 }
 
 func CreateUser(ctx context.Context, col *mongo.Collection, req *pb.CreateUserRequest) (*User, error) {
-	if req == nil {
-		return nil, errors.New("request cannot be nil")
-	}
 	if req.Name == "" {
 		return nil, errors.New("user name is required")
 	}
 	if req.Email == "" {
 		return nil, errors.New("email is required")
 	}
-
 	if req.Password == "" {
 		return nil, errors.New("password is required")
 	}

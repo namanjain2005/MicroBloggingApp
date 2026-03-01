@@ -125,7 +125,7 @@ func processCommand(app *client.App, cmd []string) error {
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("server error: %s", string(bodyBytes))
 		}
-	// define the expected response structure with timestamp field as generic
+		// define the expected response structure with timestamp field as generic
 		var out struct {
 			Followers []struct {
 				FollowerId string      `json:"follower_id"`
@@ -159,7 +159,7 @@ func processCommand(app *client.App, cmd []string) error {
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("server error: %s", string(bodyBytes))
 		}
-	var out struct {
+		var out struct {
 			Following []struct {
 				FolloweeId string      `json:"followee_id"`
 				FollowedAt interface{} `json:"followed_at"`
@@ -346,32 +346,6 @@ func processCommand(app *client.App, cmd []string) error {
 		fmt.Printf("✓ Bio Updated Successfully:\n")
 		fmt.Printf("  User: %v\n", result["Name"])
 		return nil
-
-	// case "create_post":
-	// 	if len(cmd) < 3 {
-	// 		return fmt.Errorf("usage: create_post <author_id> <text> [parent_post_id]")
-	// 	}
-	// 	return runPost(app, func(c postpb.PostServiceClient) error {
-	// 		ctx, cancel := client.Ctx()
-	// 		defer cancel()
-	// 		text := strings.Join(cmd[2:], " ")
-	// 		parentId := ""
-	// 		// Check if last arg looks like an ID (for parent)
-	// 		if len(cmd) > 3 {
-	// 			// Simple heuristic: if user wants parent, they use: create_post <author> <parent_id> <text>
-	// 			// For simplicity, just use all args after author as text
-	// 		}
-	// 		res, err := c.CreatePost(ctx, &postpb.CreatePostRequest{
-	// 			AuthorId:      cmd[1],
-	// 			Text:          text,
-	// 			Parent_PostId: parentId,
-	// 		})
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		fmt.Printf("Created Post: %s (Author: %s)\n", res.Post.Id, res.Post.AuthorId)
-	// 		return nil
-	// 	})
 
 	case "create_post":
 		// allow either: create_post <author> <text...>
@@ -763,26 +737,6 @@ func processCommand(app *client.App, cmd []string) error {
 		}
 		fmt.Println("Server Response:")
 		fmt.Printf("%s\n\n", string(body))
-		// return runSearch(app, func(c searchpb.SearchServiceClient) error {
-		// 	ctx, cancel := client.Ctx()
-		// 	defer cancel()
-		// 	query := strings.Join(cmd[1:], " ")
-		// 	res, err := c.SearchUsers(ctx, &searchpb.SearchUsersRequest{
-		// 		Query: query,
-		// 		Pagination: &searchpb.Pagination{
-		// 			Limit:  10,
-		// 			Offset: 0,
-		// 		},
-		// 	})
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// 	fmt.Printf("Found %d users:\n", res.Meta.Total)
-		// 	for _, u := range res.Users {
-		// 		fmt.Printf("  - %s (ID: %s, Email: %s)\n", u.Username, u.UserId, u.Email)
-		// 	}
-		// 	return nil
-		// })
 
 	default:
 		return fmt.Errorf("unknown command: %s", cmd[0])
