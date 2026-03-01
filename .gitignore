@@ -1,3 +1,10 @@
-.env  
-.env.local  
-*.env.local 
+.env
+.env.local
+*.env.local
+
+# Ignore built Windows executables
+*.exe
+
+# Ignore other common build outputs
+/bin/
+*.out

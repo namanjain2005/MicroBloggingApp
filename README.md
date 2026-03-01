@@ -21,241 +21,70 @@ This is a gRPC-based user service for a micro blogging application. It provides 
 
 Configuration is managed through environment variables. Create a `.env` file or set the following variables:
 
-### MongoDB Configuration
+*** Begin README update ***
+
+# MicroBlogging App
+
+This repository contains multiple small services (user, post, social, search...) used by a sample micro-blogging application. The README below focuses on how to build, run and test the code locally (Linux/macOS and Windows).
+
+Prerequisites
+- Go (1.17+) installed and on your PATH
+- MongoDB running or reachable via `MONGO_URI`
+
+Build & run (Linux / macOS)
 
 ```bash
-# Connection URI to MongoDB
-MONGO_URI=mongodb://localhost:27017
+# Build server and client
+cd cmd/server && go build -o server && cd -
+cd cmd/client && go build -o client && cd -
 
-# Database name
-MONGO_DB_NAME=microBlogging
+# Start server in background
+./cmd/server/server &
 
-# Collection name
-MONGO_COLLECTION_NAME=users
-
-# Connection timeout in seconds
-MONGO_TIMEOUT=10
+# Use the client
+./cmd/client -cmd=create -name="Alice" -password="pw"
 ```
 
-### gRPC Server Configuration
+Build & run (Windows / PowerShell)
 
-```bash
-# Server port
-GRPC_PORT=50051
+```powershell
+cd cmd\server; go build -o server.exe; cd ..\..
+cd cmd\client; go build -o client.exe; cd ..\..
 
-# Server host (0.0.0.0 for all interfaces, localhost for local only)
-GRPC_HOST=0.0.0.0
-```
-
-### Application Configuration
-
-```bash
-# Environment (development, staging, production)
-APP_ENV=development
-
-# Log level (debug, info, warn, error)
-LOG_LEVEL=info
-```
-
-## Running the Server
-
-### 1. Build the server
-
-```bash
-cd cmd/server
-go build -o server
-```
-
-### 2. Run the server
-
-With default configuration (MongoDB at localhost:27017):
-
-```bash
-./server
-```
-
-With custom configuration via environment variables:
-
-```bash
-MONGO_URI=mongodb://mongodb-host:27017 GRPC_PORT=50051 ./server
-```
-
-### 3. Verify server is running
-
-The server will output:
-
-```
-2026/01/14 10:30:00 Starting User Service
-2026/01/14 10:30:00 Environment: development
-2026/01/14 10:30:00 MongoDB URI: mongodb://localhost:27017
-2026/01/14 10:30:00 Database: microBlogging, Collection: users
-2026/01/14 10:30:00 gRPC Server: 0.0.0.0:50051
-2026/01/14 10:30:01 Successfully connected to MongoDB
-2026/01/14 10:30:01 User Service listening on [::]:50051
-```
-
-## Running the Client
-
-### 1. Build the client
-
-```bash
-cd cmd/client
-go build -o client
-```
-
-### 2. Create a user
-
-```bash
-./client -cmd=create -name="John Doe" -password="securePassword123"
-```
-
-Output:
-```
-User created successfully!
-ID: 9
-Name: John Doe
-Mail: 
-Bio: 
-```
-
-### 3. Get a user
-
-```bash
-./client -cmd=get -id="9"
-```
-
-Output:
-```
-User retrieved successfully!
-ID: 9
-Name: John Doe
-Mail: 
-Bio: 
-Follower Count: 0
-```
-
-### 4. Connect to remote server
-
-If the server is not on localhost:50051:
-
-```bash
-./client -cmd=create -server="10.0.0.5:50051" -name="Jane Doe" -password="pass123"
-```
-
-Or use environment variable:
-
-```bash
-GRPC_SERVER=10.0.0.5:50051 ./client -cmd=create -name="Jane Doe" -password="pass123"
-```
-
-## API Reference
-
-### CreateUser
-
-Creates a new user with the provided name and password.
-
-**Request:**
-```protobuf
-message CreateUserRequest {
-  string name = 1;
-  string password = 2;
-}
-```
-
-**Response:**
-```protobuf
-message User {
-    string id = 1;
-    string name = 2;
-    string mail = 3;
-    string bio = 4;
-    string Hashedpassword = 5;
-    uint64 followerCount = 6;
-    google.protobuf.Timestamp createdAt = 7;
-}
-```
-
-### GetUserByID
-
-Retrieves a user by their ID.
-
-**Request:**
-```protobuf
-message GetUserByIDRequest {
-  string id = 1;
-}
-```
-
-**Response:** `User` message
-
-## Project Structure
-
-```
+start cmd\server\server.exe
 .
-├── cmd/
-│   ├── server/           # Server entry point
-│   │   └── main.go
-│   └── client/           # Client entry point
-│       └── main.go
-├── internal/
-│   ├── config/           # Configuration management
-│   │   └── config.go
-│   └── user-service/     # User service implementation
-│       ├── server.go     # gRPC server implementation
-│       ├── user.go       # User logic and database operations
-│       ├── user.proto    # Protocol buffer definitions
-│       └── userpb/       # Generated protobuf code
-├── go.mod
-└── go.sum
 ```
 
-## Development
+Helper scripts
+- `quickstart.sh` / `quickstart.bat` — build common binaries used during development.
+- `run-all.sh` / `run-all.bat` — start the server and timeline consumer (requires built binaries).
+- `run-test.sh` / `run-test.bat` — run the repository tests (see below).
 
-### Regenerate Protocol Buffers
+Testing and per-test timings
 
-If you modify `user.proto`, regenerate the Go code:
+Each service's tests include a small `runTimed` helper that logs subtest durations in milliseconds via `t.Logf(...)`. To see the per-test timings, run tests with the `-v` flag:
 
 ```bash
-protoc --go_out=. --go-grpc_out=. internal/user-service/user.proto
+go test -v ./...
 ```
 
-### Testing
+You will see lines like:
 
-Run tests for user service:
+```
+user_test.go:16: duration: 0.709ms
+```
+
+If you prefer machine-readable output, you can use:
 
 ```bash
-cd internal/user-service
-go test -v
+go test -json ./... | jq -r 'select(.Test) | "\(.Package) \(.Test) \(.Elapsed)"'
 ```
 
-## Troubleshooting
+Notes
+- Tests are intentionally fast; many assertions will show `0.000ms`. For demonstrations you can aggregate operations inside a test, but avoid adding sleeps in CI.
+- This README now instructs using `run-test.sh` / `run-test.bat` to run the full test suite across packages.
 
-### MongoDB Connection Failed
+If you want a per-test timing CSV/JSON report, I can add a small reporter that parses `go test -json` and writes a summary.
 
-- Ensure MongoDB is running: `mongod`
-- Check `MONGO_URI` environment variable
-- Verify network connectivity to MongoDB host
-
-### gRPC Server Port in Use
-
-- Change `GRPC_PORT` environment variable
-- Or kill the process using the port: `lsof -i :50051` (Linux/Mac)
-
-### Client Cannot Connect
-
-- Verify server is running
-- Check `GRPC_SERVER` environment variable or use `-server` flag
-- Ensure firewall allows gRPC port
-
-## Environment Variables Summary
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| MONGO_URI | mongodb://localhost:27017 | MongoDB connection URI |
-| MONGO_DB_NAME | microBlogging | Database name |
-| MONGO_COLLECTION_NAME | users | Collection name |
-| MONGO_TIMEOUT | 10 | MongoDB connection timeout (seconds) |
-| GRPC_PORT | 50051 | gRPC server port |
-| GRPC_HOST | 0.0.0.0 | gRPC server host |
-| APP_ENV | development | Application environment |
-| LOG_LEVEL | info | Logging level |
+*** End README update ***
+2026/01/14 10:30:00 MongoDB URI: mongodb://localhost:27017
