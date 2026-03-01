@@ -57,16 +57,16 @@ mongo --version
 ### Option 2: Docker MongoDB
 
 ```bash
-# Run MongoDB in Docker
+# Run MongoDB in Docker (use a strong password; replace <your-password>)
 docker run -d \
-  --name mongodb \
-  -p 27017:27017 \
-  -e MONGO_INITDB_ROOT_USERNAME=root \
-  -e MONGO_INITDB_ROOT_PASSWORD=password \
-  mongo:7.0
+    --name mongodb \
+    -p 27017:27017 \
+    -e MONGO_INITDB_ROOT_USERNAME=root \
+    -e MONGO_INITDB_ROOT_PASSWORD=<your-password> \
+    mongo:7.0
 
 # Verify connection
-docker exec mongodb mongosh -u root -p password --authenticationDatabase admin --eval "db.version()"
+docker exec mongodb mongosh -u root -p <your-password> --authenticationDatabase admin --eval "db.version()"
 ```
 
 ### Option 3: Docker Compose (Complete Stack)
@@ -188,11 +188,12 @@ mongodb://root:password@mongo:27017
 ## Verification Checklist
 
 ### MongoDB Setup
-- [ ] MongoDB service is running
+    -e MONGO_INITDB_ROOT_PASSWORD=<your-password> \
 - [ ] Can connect: `mongosh` or `mongo` command works
 - [ ] MONGO_URI environment variable is set (or using default)
 
 ### Go Setup
+docker exec mongodb mongosh -u root -p <your-password> --authenticationDatabase admin --eval "db.version()"
 - [ ] Go is installed: `go version` shows 1.25.2+
 - [ ] GOPATH is set correctly
 - [ ] Can run: `go run hello.go` works
@@ -221,16 +222,19 @@ if ($mongoTest) {
 }
 
 # Check environment
-Write-Host "MONGO_URI: $env:MONGO_URI"
-Write-Host "GRPC_PORT: $env:GRPC_PORT"
-
-# Check project
-Write-Host "Checking project..."
-if (Test-Path "go.mod") {
-    Write-Host "Project: Found"
-} else {
-    Write-Host "Project: Not found in current directory"
-}
+Create `.env` in project root from `.env.example` (do NOT commit `.env`):
+```bash
+# copy the example and fill in secrets
+cp .env.example .env
+# Edit .env and set values like:
+# MONGO_URI=mongodb://localhost:27017
+# MONGO_DB_NAME=microBlogging
+# MONGO_COLLECTION_NAME=users
+# GRPC_PORT=50051
+# GRPC_HOST=0.0.0.0
+# APP_ENV=development
+# LOG_LEVEL=info
+```
 ```
 
 ### Linux/macOS

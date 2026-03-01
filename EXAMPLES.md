@@ -46,7 +46,7 @@ APP_ENV=production LOG_LEVEL=warn ./server
 
 ### Start Server with All Custom Settings
 ```bash
-MONGO_URI="mongodb://root:password@mongo:27017" \
+MONGO_URI="mongodb://root:<your-password>@mongo:27017" \
 MONGO_DB_NAME="myBlog" \
 MONGO_COLLECTION_NAME="accounts" \
 GRPC_PORT=50051 \
@@ -66,7 +66,7 @@ go build -o client
 
 ### Create User (Basic)
 ```bash
-./client -cmd=create -name="John Doe" -password="SecurePassword123"
+./client -cmd=create -name="John Doe" -password="<your-password>"
 ```
 
 **Output:**
@@ -80,9 +80,9 @@ Bio:
 
 ### Create Multiple Users
 ```bash
-./client -cmd=create -name="Alice Johnson" -password="alice123"
-./client -cmd=create -name="Bob Smith" -password="bob456"
-./client -cmd=create -name="Carol Williams" -password="carol789"
+./client -cmd=create -name="Alice Johnson" -password="<example-password>"
+./client -cmd=create -name="Bob Smith" -password="<example-password>"
+./client -cmd=create -name="Carol Williams" -password="<example-password>"
 ```
 
 ### Get User by ID
@@ -103,7 +103,7 @@ Follower Count: 0
 ### Connect to Remote Server
 ```bash
 # Connect to server on different machine
-./client -server="192.168.1.100:50051" -cmd=create -name="Remote User" -password="pass"
+./client -server="192.168.1.100:50051" -cmd=create -name="Remote User" -password="<example-password>"
 
 # Connect to server in Docker
 ./client -server="localhost:50051" -cmd=get -id="8"
@@ -115,7 +115,7 @@ Follower Count: 0
 export GRPC_SERVER="remote-server.example.com:50051"
 
 # Client uses it automatically
-./client -cmd=create -name="Test" -password="test123"
+./client -cmd=create -name="Test" -password="<example-password>"
 ```
 
 ### Script: Create Multiple Users
@@ -124,11 +124,11 @@ export GRPC_SERVER="remote-server.example.com:50051"
 # create_users.sh
 
 USERS=(
-  "alice:password1"
-  "bob:password2"
-  "carol:password3"
-  "dave:password4"
-  "eve:password5"
+  "alice:<example-password>"
+  "bob:<example-password>"
+  "carol:<example-password>"
+  "dave:<example-password>"
+  "eve:<example-password>"
 )
 
 for user in "${USERS[@]}"; do
@@ -160,7 +160,7 @@ docker run -p 50051:50051 \
 
 # With authentication
 docker run -p 50051:50051 \
-  -e MONGO_URI=mongodb://root:password@mongo:27017 \
+  -e MONGO_URI=mongodb://root:<your-password>@mongo:27017 \
   microblogging-server:v1.0.0
 ```
 

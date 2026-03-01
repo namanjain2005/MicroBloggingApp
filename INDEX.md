@@ -68,7 +68,7 @@ make run-server
 ### Step 4: Use Client (Terminal 2)
 ```bash
 # Create user
-./cmd/client/client -cmd=create -name="John" -password="pass123"
+./cmd/client/client -cmd=create -name="John" -password="<example-password>"
 
 # Get user
 ./cmd/client/client -cmd=get -id="4"
@@ -91,7 +91,7 @@ microBlogging-app/
 │   ├── DEPLOYMENT.md       # Deployment guide
 │   └── FILES_SUMMARY.md    # File reference
 ├── Configuration/
-│   ├── .env               # Environment variables
+│   ├── .env               # Local environment variables (DO NOT commit)
 │   ├── .env.example       # Example env
 │   ├── Dockerfile         # Docker image
 │   ├── docker-compose.yml # Docker stack
@@ -142,7 +142,7 @@ make clean             # Clean binaries
 ### Run
 ```bash
 make run-server        # Run server
-./cmd/client/client -cmd=create -name="Test" -password="pass"
+./cmd/client/client -cmd=create -name="Test" -password="<example-password>"
 ```
 
 ### Docker

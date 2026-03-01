@@ -24,13 +24,13 @@
 **Usage:**
 ```bash
 # Create user
-./client -cmd=create -name="John Doe" -password="securePass"
+./client -cmd=create -name="John Doe" -password="<example-password>"
 
 # Get user
 ./client -cmd=get -id="9"
 
 # Custom server
-./client -server="10.0.0.5:50051" -cmd=create -name="Jane" -password="pass"
+./client -server="10.0.0.5:50051" -cmd=create -name="Jane" -password="<example-password>"
 ```
 
 ### 3. **Configuration Management** (`internal/config/config.go`)
@@ -126,7 +126,7 @@ go build -o client
 ### Step 5: Use Client
 ```bash
 # Create user
-./client -cmd=create -name="Alice" -password="secret123"
+./client -cmd=create -name="Alice" -password="<example-password>"
 
 # Get user
 ./client -cmd=get -id="5"

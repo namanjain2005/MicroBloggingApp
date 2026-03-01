@@ -42,7 +42,7 @@ cd cmd/client && go build -o client && cd -
 ./cmd/server/server &
 
 # Use the client
-./cmd/client -cmd=create -name="Alice" -password="pw"
+./cmd/client -cmd=create -name="Alice" -password="<your-password>"
 ```
 
 Build & run (Windows / PowerShell)

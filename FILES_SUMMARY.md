@@ -17,7 +17,7 @@
 ## Configuration Files
 
 - **[.env.example](.env.example)** - Example environment variables template
-- **[.env](.env)** - Production environment variables (create this from .env.example)
+- **.env (local only)** - Local environment file created from `.env.example`. Do NOT commit `.env` to the repository.
 
 ## Docker & Deployment
 
@@ -83,7 +83,7 @@ make build
 make run-server
 
 # 3. Create user (Terminal 2)
-./cmd/client/client -cmd=create -name="John" -password="pass123"
+./cmd/client/client -cmd=create -name="John" -password="<example-password>"
 
 # 4. Get user
 ./cmd/client/client -cmd=get -id="4"
@@ -95,7 +95,7 @@ make run-server
 docker-compose up -d
 
 # Test
-go run cmd/client/main.go -server=localhost:50051 -cmd=create -name="Jane" -password="secret"
+go run cmd/client/main.go -server=localhost:50051 -cmd=create -name="Jane" -password="<example-password>"
 ```
 
 ## File Structure
@@ -117,7 +117,7 @@ microBlogging-app/
 │       └── userpb/
 │           ├── user.pb.go       # Generated protobuf
 │           └── user_grpc.pb.go  # Generated gRPC
-├── .env                         # Environment variables
+├── .env                         # Local environment variables (DO NOT commit)
 ├── .env.example                 # Example env file
 ├── .dockerignore                # Docker ignore file
 ├── Dockerfile                   # Docker image
@@ -146,7 +146,7 @@ make clean             # Remove binaries
 ```bash
 make run-server        # Run gRPC server
 MONGO_URI=... ./cmd/server/server  # Custom MongoDB
-./cmd/client/client -cmd=create -name="Test" -password="pass"
+./cmd/client/client -cmd=create -name="Test" -password="<example-password>"
 ```
 
 ### Development
